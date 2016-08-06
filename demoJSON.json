@@ -1,0 +1,16 @@
+{
+	"name": "Demo json file",
+	"description": "A description of this file",
+	"items": [{
+		"name": "item name",
+		"description": "item description"
+	}, {
+		"name": "item name 2",
+		"description": "item 2 description"
+		}
+	],
+	"config":{
+		"key1": "key1 value",
+		"key2": "key2 value"
+	}
+}

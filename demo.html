@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>jsone Demo</title>
+		<meta charset="utf-8" />
+		<meta name="description" content="Test the display and usage of jsone during development">
+		<meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=yes">
+		<style>
+			body{
+				font-family:Helvetica;
+				margin:0;
+				padding:0;
+			}
+			h1,h2,h3,p{ margin: 2px 0; }
+		</style>
+	</head>
+	<body>
+		<div id="demoTarget"></div>
+		<script src="jsone.js"></script>
+		<script>
+			var demo = new jsone({
+					node: document.getElementById('demoTarget'),
+					json: 'demoJSON.json',
+					schema: 'demoSchema.json'
+				});
+		</script>
+	</body>
+</html>
