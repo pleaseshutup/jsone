@@ -10,6 +10,11 @@
 			"min": "1"
 		}
 	},
+	"description": {
+		"type": "string",
+		"description": "enter a description",
+		"rules": "nah"
+	},
 	"date": {
 		"type": "date",
 		"description": "all \"date\" keys are a date everywhere",

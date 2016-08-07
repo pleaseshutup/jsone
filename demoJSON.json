@@ -5,7 +5,7 @@
 	"items": [{
 		"name": "item name",
 		"description": "item description"
-	}, {
+	}, null, {
 		"name": "item name 2",
 		"description": "item 2 description"
 		}

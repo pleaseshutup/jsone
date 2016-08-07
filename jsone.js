@@ -37,11 +37,11 @@
 		// accept a javascript object for the scheme or a URL
 		self.schema = function(schema) {
 			if (!schema) {
-				self.initSchema(); return false;
+				self.__schema = {};
+				return false;
 			}
 			if (typeof schema === 'object') {
 				self.__schema = schema;
-				self.initSchema();
 			} else {
 				__mdd.prototype.http(schema, function(schema) {
 					if (!schema) {
@@ -52,25 +52,68 @@
 			}
 		};
 
-		//callback for when scemea is ready
-		self.initSchema = function() {
-			self.prepareSchema(self.__schema, []);
-		};
+		self.loopRulesForPath = function(rules, rulesPath, rulesRegex, node, path){
+			var type = Array.isArray(node) ? 'array' : typeof node;
+			if(type === 'object' && node === null){ type = 'null'; }
 
-		self.prepareSchema = function(node, path) {
-			for (var k in node) {
 
+			if(!path.length){
+				for (var k in node) {
+					if(k[0] !== '/'){
+						rules[k] = node[k];
+					}
+				}
+			} else {
 			}
-		};
 
-		self.getRulesForPath = function(path) {};
+			// continue loop
+			for (var k in node) {
+				if(k[0] === '/'){
+					if (type === 'object' || type === 'array') {
+						self.loopRulesForPath(rules, rulesPath, rulesRegex, node[k], path.concat(k));
+					}
+				} else {
+					if(!path.length){
+						rules[k] = node[k];
+					} else {
+						// wildcard
+						var joinpath = path.join('/');
+						if(rulesPath === joinpath){
+							rules[k] = node[k];
+						} else if(rulesRegex){
+							if(rulesRegex.exec(joinpath)){
+								rules[k] = node[k];
+							}
+						}
+					}
+				}
+			}
+
+		}
+
+		self.getRulesForPath = function(path, callback) {
+			var rules = {},
+				joinpath = path.join('/'),
+				pathRegex;
+
+			if(joinpath.indexOf('*') > -1){
+				pathRegex = new RegExp(joinpath.replace(/\*/, '\\\S*'), 'gi');
+			}
+
+			self.loopRulesForPath(rules, joinpath, pathRegex, self.__schema, []);
+			setTimeout(function(){
+				callback(JSON.parse(JSON.stringify(rules)));
+			}, 1);
+			return false;
+		};
 
 		self.json(self.__config.json || self.__config.json);
 		self.schema(self.__config.schema || self.__config.schema);
 
 		// exec func on every part of the object, continue looping if the item is an object or array
 		self.loopJSON = function(node, path, func) {
-			var type = type = Array.isArray(node) ? 'array' : typeof node;
+			var type = Array.isArray(node) ? 'array' : typeof node;
+			if(type === 'object' && node === null){ type = 'null'; }
 
 			if (path.length) {
 				func(node, path, type);
@@ -92,12 +135,12 @@
 					display: indent > 0 ? 'none' : 'block'
 				};
 			var row = DOM().new('div').class('jsone-row')
-				.append(DOM().new('span'))
-				.append(DOM().new('span').text('path: ' + joinpath))
+				.append(DOM().new('span').class('jsone-row-text').html('path: ' + path.join('<span class="jsone-delimiter">/</span>')))
 				.css(css)
 				.attr({
 					'data-parent-path': path.slice(0, -1).join('/'),
-					'data-path': joinpath
+					'data-path': joinpath,
+					'data-children': type === 'object' || type === 'array' ? '1' : '0'
 				})
 				.appendTo(self.__json_rows)
 				.on('click', function(e) {
@@ -121,7 +164,13 @@
 								'data-expanded': '1'
 							});
 						}
+					} else {
+
 					}
+					if(self.__activeRow){
+						self.__activeRow.attr({'data-active': '0'});
+					}
+					self.__activeRow = row.attr({'data-active': '1'});
 					self.renderHelpPath(row, node, path, type);
 				});
 		};
@@ -129,7 +178,20 @@
 
 		self.renderHelpPath = function(row, node, path, type) {
 			self.__json_help.html('');
-			DOM().new('div').text('path: ' + path.join('/')).appendTo(self.__json_help);
+
+			var key = path[path.length-1];
+
+			DOM().new('div').class('jsone-help-path').html('Path: ' + path.join('<span class="jsone-delimiter">/</span>')).appendTo(self.__json_help);
+			var into = DOM().new('div').class('jsone-help-items').appendTo(self.__json_help);
+
+			self.getRulesForPath(path, function(rules){
+				console.log('key', key, 'rules', rules);
+				if(rules[key]){
+					if(rules[key].description){
+						DOM().new('div').class('jsone-help-description').html(rules[key].description).appendTo(into);
+					}
+				}
+			});
 		};
 
 		self.__node.elements[0].classList.add('jsone');
@@ -138,23 +200,49 @@
 
 		__mdd.prototype.stylesheet({
 			'.jsone': {
-				'display': 'flex'
+				display: 'flex'
 			},
 			'.jsone-rows': {
-				'width': '50%',
-				'padding': '2px'
+				width: '50%',
 			},
 			'.jsone-help': {
 				'background-color': '#eaeaea',
-				'width': '50%',
-				'padding': '2px'
+				width: '50%',
 			},
-			'.jsone-row span': {
-				'display': 'inline-block',
-				'padding': '2px 0'
+			'.jsone-row': {
+				cursor: 'pointer'
 			},
 			'.jsone-row:hover': {
 				'background-color': '#eaeaea'
+			},
+			'.jsone-row-text': {
+				display: 'inline-block',
+				padding: '4px 0'
+			},
+			'.jsone-row:before': {
+				content: '""',
+				display: 'inline-block',
+				width: '16px'
+			},
+			'.jsone-row[data-children="1"]:before': {
+				content: '"+"'
+			},
+			'.jsone-row[data-expanded="1"]:before': {
+				content: '"–"'
+			},
+			'.jsone-row[data-active="1"]': {
+				'background-color': '#eaeaea'
+			},
+			'.jsone-help-path':{
+				padding: '4px'
+			},
+			'.jsone-help-items': {
+				padding: '4px'
+			},
+			'.jsone-delimiter': {
+				display: 'inline-block',
+				color: '#666',
+				padding: '0 2px'
 			}
 		}, 'jsone-sheet');
 
