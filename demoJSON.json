@@ -1,6 +1,7 @@
 {
 	"name": "Demo json file",
 	"description": "A description of this file",
+	"date": "",
 	"items": [{
 		"name": "item name",
 		"description": "item description"
