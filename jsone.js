@@ -53,16 +53,16 @@
 		};
 
 		// keys all matching keys from the rule path including wildcards
-		self.loopRulesForKey = function(rules, key){
-			if(rules[key]){
+		self.loopRulesForKey = function(rules, key) {
+			if (rules[key]) {
 
 			}
 			// find wildcard keys to add to rules
-			Object.keys(rules).filter(function(ruleKey){
+			Object.keys(rules).filter(function(ruleKey) {
 				return ruleKey.indexOf('*') > -1;
-			}).forEach(function(ruleKey){
-				if(new RegExp(ruleKey.replace(/\*/, '\\S'), 'gi').test(key)){
-					for(var k in rules[keys]){
+			}).forEach(function(ruleKey) {
+				if (new RegExp(ruleKey.replace(/\*/, '\\S'), 'gi').test(key)) {
+					for (var k in rules[keys]) {
 						rules[key] = rules[ruleKey][k];
 					}
 				}
@@ -71,41 +71,41 @@
 
 		};
 
-		self.loopRulesForKey = function(rules, ruleSet, ruleKey, key){
-			console.log('check', key, ruleKey)
+		self.loopRulesForKey = function(rules, ruleSet, ruleKey, key) {
 			var checkRegex = ruleKey.indexOf('*') > -1 ? new RegExp(ruleKey.replace(/\*/, '\\S'), 'gi').test(key) : false;
-			if(checkRegex || ruleKey === key){
-				for(var prop in ruleSet){
+			if (checkRegex || ruleKey === key) {
+				for (var prop in ruleSet) {
 					rules[prop] = ruleSet[prop];
 				}
 			}
-		}
+		};
 
-		self.loopRulesForPath = function(rules, rulesPath){
-			var key = rulesPath[rulesPath.length -1];
-			for(var k in self.__schema){
-				if(k[0] !== '/'){
-					self.loopRulesForKey(rules, self.__schema[k], k, key);
+		self.loopRulesForPath = function(rules, rulesPath, node) {
+			var key = rulesPath[rulesPath.length - 1];
+			for (var k in node) {
+				if (k[0] !== '/') {
+					self.loopRulesForKey(rules, node[k], k, key);
 				} else {
 					// this is a path, check if it is valid
 					var checkRegex = k.indexOf('*') > -1 ? new RegExp(k.substr(1).replace(/\*/, '\\S'), 'gi').test(rulesPath) : false;
-					if(checkRegex || rulesPath === k){
-						for(var ruleKey in self.__schema[k]){
-							self.loopRulesForKey(rules, self.__schema[k][ruleKey], ruleKey, key);
+					if (checkRegex || rulesPath === k) {
+						for (var ruleKey in node[k]) {
+							if (ruleKey[0] === '/') {
+								self.loopRulesForPath(rules, rulesPath, node[k]);
+							} else {
+								self.loopRulesForKey(rules, node[k][ruleKey], ruleKey, key);
+							}
 						}
-						
 					}
 				}
 			}
-		}
+		};
 
 		self.getRulesForPath = function(path, callback) {
-			var rules = {},
-				key = path[path.length -1];
+			var rules = {};
+			self.loopRulesForPath(rules, path, self.__schema);
 
-			self.loopRulesForPath(rules, path, key, self.__schema, []);
-
-			setTimeout(function(){
+			setTimeout(function() {
 				callback(JSON.parse(JSON.stringify(rules || {})));
 			}, 1);
 
@@ -118,7 +118,9 @@
 		// exec func on every part of the object, continue looping if the item is an object or array
 		self.loopJSON = function(node, path, func) {
 			var type = Array.isArray(node) ? 'array' : typeof node;
-			if(type === 'object' && node === null){ type = 'null'; }
+			if (type === 'object' && node === null) {
+				type = 'null';
+			}
 
 			if (path.length) {
 				func(node, path, type);
@@ -131,6 +133,15 @@
 			}
 		};
 
+		// tries to provide some helpful extra information on the current node row like the name or description or value of the node
+		self.getNodeDescription = function(node, type){
+			var str = '';
+			if(type === 'object'){
+				str = node.name || node.title || node.label || node.description;
+			}
+			return str ? '<span class="jsone-node-helper">'+str+'</span>' : '';
+		}
+
 		// render the ui for every segment of the object
 		self.renderNode = function(node, path, type) {
 			var indent = path.length - 1,
@@ -138,9 +149,13 @@
 				css = {
 					'padding-left': (indent * 20) + 'px',
 					display: indent > 0 ? 'none' : 'block'
-				};
+				},
+				keyName = path[path.length-1] + self.getNodeDescription(node, type);
+
 			var row = DOM().new('div').class('jsone-row')
-				.append(DOM().new('span').class('jsone-row-text').html('path: ' + path.join('<span class="jsone-delimiter">/</span>')))
+				.append(
+					DOM().new('span').class('jsone-row-text').html(keyName)
+				)
 				.css(css)
 				.attr({
 					'data-parent-path': path.slice(0, -1).join('/'),
@@ -172,10 +187,14 @@
 					} else {
 
 					}
-					if(self.__activeRow){
-						self.__activeRow.attr({'data-active': '0'});
+					if (self.__activeRow) {
+						self.__activeRow.attr({
+							'data-active': '0'
+						});
 					}
-					self.__activeRow = row.attr({'data-active': '1'});
+					self.__activeRow = row.attr({
+						'data-active': '1'
+					});
 					self.renderHelpPath(row, node, path, type);
 				});
 		};
@@ -187,10 +206,10 @@
 			DOM().new('div').class('jsone-help-path').html('Path: ' + path.join('<span class="jsone-delimiter">/</span>')).appendTo(self.__json_help);
 			var into = DOM().new('div').class('jsone-help-items').appendTo(self.__json_help);
 
-			self.getRulesForPath(path, function(rules){
+			self.getRulesForPath(path, function(rules) {
 				console.log('rules', rules);
-				if(rules){
-					if(rules.description){
+				if (rules) {
+					if (rules.description) {
 						DOM().new('div').class('jsone-help-description').html(rules.description).appendTo(into);
 					}
 				}
@@ -236,7 +255,12 @@
 			'.jsone-row[data-active="1"]': {
 				'background-color': '#eaeaea'
 			},
-			'.jsone-help-path':{
+			'.jsone-node-helper': {
+				'padding-left': '4px',
+				'font-size': '-1',
+				color: '#999'
+			},
+			'.jsone-help-path': {
 				padding: '4px'
 			},
 			'.jsone-help-items': {
