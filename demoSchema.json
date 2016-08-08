@@ -1,23 +1,23 @@
 {
-	"__jsone_instructions1": "keys that start with a / are considered relative path instructions. Use * for wildcard",
-	"__jsone_instructions2": "a path is delimited by / (like a . in javascript)",
-	"/config*": {
-		"key*": {
-			"type": "string",
-			"description": "enter a value for this key",
-			"rules": "must be a string between 1 and 20 chars",
-			"max": "20",
-			"min": "1"
-		}
-	},
-	"description": {
-		"type": "string",
-		"description": "enter a description",
-		"rules": "nah"
-	},
-	"date": {
-		"type": "date",
-		"description": "all \"date\" keys are a date everywhere",
-		"rules": "must be a valid date"
-	}
+  "__jsone_instructions1": "keys that start with a / are considered relative path instructions. Use * for wildcard",
+  "__jsone_instructions2": "a path is delimited by / (like a . in javascript)",
+  "/config*": {
+    "key*": {
+      "type": "string",
+      "description": "enter a value for this key",
+      "rules": "must be a string between 1 and 20 chars",
+      "max": "20",
+      "min": "1"
+    }
+  },
+  "description": {
+    "type": "string",
+    "description": "enter a description",
+    "rules": "nah"
+  },
+  "date": {
+    "type": "date",
+    "description": "all \"date\" keys are a date everywhere",
+    "rules": "must be a valid date"
+  }
 }

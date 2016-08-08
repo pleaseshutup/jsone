@@ -115,13 +115,17 @@
 		self.json(self.__config.json || self.__config.json);
 		self.schema(self.__config.schema || self.__config.schema);
 
-		// exec func on every part of the object, continue looping if the item is an object or array
-		self.loopJSON = function(node, path, func) {
+		self.getNodeType = function(node){
 			var type = Array.isArray(node) ? 'array' : typeof node;
 			if (type === 'object' && node === null) {
 				type = 'null';
 			}
+			return type;
+		}
 
+		// exec func on every part of the object, continue looping if the item is an object or array
+		self.loopJSON = function(node, path, func) {
+			var type = self.getNodeType(node);
 			if (path.length) {
 				func(node, path, type);
 			}
@@ -134,13 +138,13 @@
 		};
 
 		// tries to provide some helpful extra information on the current node row like the name or description or value of the node
-		self.getNodeDescription = function(node, type){
+		self.getNodeDescription = function(node, type) {
 			var str = '';
-			if(type === 'object'){
+			if (type === 'object') {
 				str = node.name || node.title || node.label || node.description;
 			}
-			return str ? '<span class="jsone-node-helper">'+str+'</span>' : '';
-		}
+			return str ? '<span class="jsone-node-helper">' + str + '</span>' : '';
+		};
 
 		// render the ui for every segment of the object
 		self.renderNode = function(node, path, type) {
@@ -150,12 +154,12 @@
 					'padding-left': (indent * 20) + 'px',
 					display: indent > 0 ? 'none' : 'block'
 				},
-				keyName = path[path.length-1] + self.getNodeDescription(node, type);
+				keyName = path[path.length - 1] + self.getNodeDescription(node, type);
 
 			var row = DOM().new('div').class('jsone-row')
 				.append(
 					DOM().new('span').class('jsone-row-text').html(keyName)
-				)
+			)
 				.css(css)
 				.attr({
 					'data-parent-path': path.slice(0, -1).join('/'),
@@ -195,25 +199,39 @@
 					self.__activeRow = row.attr({
 						'data-active': '1'
 					});
-					self.renderHelpPath(row, node, path, type);
+					self.renderHelpPath(node, path, type, 'main');
 				});
 		};
 
 
-		self.renderHelpPath = function(row, node, path, type) {
-			self.__json_help.html('');
-
-			DOM().new('div').class('jsone-help-path').html('Path: ' + path.join('<span class="jsone-delimiter">/</span>')).appendTo(self.__json_help);
-			var into = DOM().new('div').class('jsone-help-items').appendTo(self.__json_help);
-
+		self.renderHelpSegment = function(node, path, type, into, context){
+			var secinto = DOM().new('div').appendTo(into);
 			self.getRulesForPath(path, function(rules) {
-				console.log('rules', rules);
 				if (rules) {
 					if (rules.description) {
-						DOM().new('div').class('jsone-help-description').html(rules.description).appendTo(into);
+						DOM().new('div').class('jsone-help-description').html(rules.description).appendTo(secinto);
 					}
 				}
 			});
+
+			if(type === 'object'){
+				for(var k in node){
+					DOM().new('div').text('sub-key: '+path.concat(k).join('/')).appendTo(secinto);
+					self.renderHelpSegment(node[k], path.concat(k), self.getNodeType(node[k]), secinto, 'sub');
+				}
+			}
+
+		}
+
+		self.renderHelpPath = function(node, path, type) {
+
+			self.__json_help.html('');
+			DOM().new('div').class('jsone-help-path').html('Path: ' + path.join('<span class="jsone-delimiter">/</span>')).appendTo(self.__json_help);
+
+			var into = DOM().new('div').class('jsone-help-items').appendTo(self.__json_help);
+
+			self.renderHelpSegment(node, path, type, into, 'main');
+
 		};
 
 		self.__node.elements[0].classList.add('jsone');
