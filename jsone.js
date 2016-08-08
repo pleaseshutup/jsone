@@ -8,10 +8,18 @@
 		// the node we write into. Take provided node, query selector, id=jsone or just the body
 		self.__node = DOM(config.node || document.querySelector(config.node) || document.getElementById('jsone') || document.body);
 
+
+		self.__state = {
+			rows: [],
+			rowsref: {},
+			help: 0
+		};
+
 		// accept a javascript object or a URL to one
 		self.json = function(json) {
 			if (!json) {
-				self.initJSON(); return false;
+				self.initJSON();
+				return false;
 			}
 			if (typeof json === 'object') {
 				self.__json = json;
@@ -28,10 +36,23 @@
 
 		// callback for json ready
 		self.initJSON = function() {
-			self.loopJSON(self.__json, [], function(node, path, type) {
-				self.renderNode(node, path, type);
+			self.loopJSON(self.__json, undefined, [], function(node, key, path, type) {
+				// we use node and key to pass by reference
+				var joinpath = path.join('/');
+				var index = self.__state.rows.push({
+						node: node,
+						key: key,
+						path: path,
+						joinpath: joinpath,
+						parent: path.slice(0,-1).join('/'),
+						type: type,
+						changed: true,
+						expanded: 0
+					})
+				self.__state.rowsref[joinpath] = index - 1;
 			});
-			console.log('json', self.__json, self.__config);
+
+			self.renderState();
 		};
 
 		// accept a javascript object for the scheme or a URL
@@ -115,7 +136,7 @@
 		self.json(self.__config.json || self.__config.json);
 		self.schema(self.__config.schema || self.__config.schema);
 
-		self.getNodeType = function(node){
+		self.getNodeType = function(node) {
 			var type = Array.isArray(node) ? 'array' : typeof node;
 			if (type === 'object' && node === null) {
 				type = 'null';
@@ -124,15 +145,19 @@
 		}
 
 		// exec func on every part of the object, continue looping if the item is an object or array
-		self.loopJSON = function(node, path, func) {
-			var type = self.getNodeType(node);
-			if (path.length) {
-				func(node, path, type);
-			}
-
-			if (type === 'object' || type === 'array') {
+		self.loopJSON = function(node, key, path, func) {
+			if(path.length){
+				var type = self.getNodeType(node[key]);
+				func(node, key, path, type);
+				if (type === 'object' || type === 'array') {
+					for (var k in node[key]) {
+						console.log('loop', k);
+						self.loopJSON(node[key], k, path.concat(k), func);
+					}
+				}
+			} else {
 				for (var k in node) {
-					self.loopJSON(node[k], path.concat(k), func);
+					self.loopJSON(node, k, path.concat(k), func);
 				}
 			}
 		};
@@ -142,97 +167,131 @@
 			var str = '';
 			if (type === 'object') {
 				str = node.name || node.title || node.label || node.description;
+				return str ? '<span class="jsone-node-helper">' + str + '</span>' : '';
+			} else if(type === 'number' || type === 'string'){
+				str = node;
+				return str ? '<span class="jsone-node-value">:' + str + '</span>' : '';
+			} else if(type === 'null'){
+				return '<span class="jsone-node-helper">null</span>';
 			}
-			return str ? '<span class="jsone-node-helper">' + str + '</span>' : '';
+			return str;
 		};
 
-		// render the ui for every segment of the object
-		self.renderNode = function(node, path, type) {
-			var indent = path.length - 1,
-				joinpath = path.join('/'),
-				css = {
-					'padding-left': (indent * 20) + 'px',
-					display: indent > 0 ? 'none' : 'block'
-				},
-				keyName = path[path.length - 1] + self.getNodeDescription(node, type);
+		//renders each individual key ui segment
+		self.renderHelpSegment = function(node, path, type, into, context) {
+			var secinto = DOM().new('div').class('jsone-help-section').appendTo(into);
 
-			var row = DOM().new('div').class('jsone-row')
-				.append(
-					DOM().new('span').class('jsone-row-text').html(keyName)
-			)
-				.css(css)
-				.attr({
-					'data-parent-path': path.slice(0, -1).join('/'),
-					'data-path': joinpath,
-					'data-children': type === 'object' || type === 'array' ? '1' : '0'
-				})
-				.appendTo(self.__json_rows)
-				.on('click', function(e) {
-					if (type === 'object' || type === 'array') {
-						if (row.elements[0].getAttribute('data-expanded') === '1') {
-							self.__json_rows.find('div.jsone-row[data-parent-path^="' + joinpath + '"]').css({
-								display: 'none'
-							}).attr({
-								'data-expanded': '0'
-							});
-							row.attr({
-								'data-expanded': '0'
-							});
-						} else {
-							self.__json_rows.find('div.jsone-row[data-parent-path="' + joinpath + '"]').css({
-								display: 'block'
-							}).attr({
-								'data-expanded': '0'
-							});
-							row.attr({
-								'data-expanded': '1'
-							});
-						}
-					} else {
-
-					}
-					if (self.__activeRow) {
-						self.__activeRow.attr({
-							'data-active': '0'
-						});
-					}
-					self.__activeRow = row.attr({
-						'data-active': '1'
-					});
-					self.renderHelpPath(node, path, type, 'main');
-				});
-		};
-
-
-		self.renderHelpSegment = function(node, path, type, into, context){
-			var secinto = DOM().new('div').appendTo(into);
 			self.getRulesForPath(path, function(rules) {
 				if (rules) {
+					if (rules.type) {
+						type = rules.type;
+					}
+
+					DOM().new('div').class('jsone-help-key').attr({title: path.join('/') + ' ('+type+')'}).html(path[path.length-1]).appendTo(secinto);
+					DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
+
 					if (rules.description) {
 						DOM().new('div').class('jsone-help-description').html(rules.description).appendTo(secinto);
+						DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
+					}
+
+					if(type === 'string'){
+						DOM().new('textarea').class('jsone-input').attr({'data-path': path.join('/'), placeholder: rules.placeholder || ''}).text(node || '').appendTo(secinto);
+						DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
+					} else if (type === 'number'){
+						DOM().new('input').class('jsone-input').attr({type: 'number','data-path': path.join('/'), placeholder: rules.placeholder || ''}).appendTo(secinto);
+						DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
 					}
 				}
 			});
 
-			if(type === 'object'){
-				for(var k in node){
-					DOM().new('div').text('sub-key: '+path.concat(k).join('/')).appendTo(secinto);
-					self.renderHelpSegment(node[k], path.concat(k), self.getNodeType(node[k]), secinto, 'sub');
+			if (type === 'object') {
+				for (var k in node) {
+					self.renderHelpSegment(node[k], path.concat(k), self.getNodeType(node[k]), into, 'sub');
 				}
+			} else if (type === 'array') {
+
 			}
 
 		}
 
 		self.renderHelpPath = function(node, path, type) {
-
+			console.log('rendering help path', node);
 			self.__json_help.html('');
 			DOM().new('div').class('jsone-help-path').html('Path: ' + path.join('<span class="jsone-delimiter">/</span>')).appendTo(self.__json_help);
 
-			var into = DOM().new('div').class('jsone-help-items').appendTo(self.__json_help);
+			var into = DOM().new('form').class('jsone-help-items').appendTo(self.__json_help).on('submit', function(e){
+				e.preventDefault();
+
+				var changed = false;
+
+				into.find('.jsone-input').elements.forEach(function(el){
+					var joinpath = el.getAttribute('data-path');
+					if(joinpath){
+						var rowstate = self.__state.rows[self.__state.rowsref[joinpath]]
+						if(rowstate){
+							if(rowstate.node[rowstate.key] !== el.value){
+								rowstate.node[rowstate.key] = el.value || '';
+								rowstate.changed = true;
+								changed = true;
+							}
+						}
+					}
+				});
+				if(changed){
+					self.renderState();
+				}
+			});
 
 			self.renderHelpSegment(node, path, type, into, 'main');
 
+			DOM().new('input').class('jsone-input').attr({type: 'submit', value: 'Save'}).appendTo(into);
 		};
+
+		self.renderState = function(){
+			self.__state.rows.forEach(function(rowstate){
+				var indent = rowstate.path.length - 1,
+					css = {
+						'padding-left': (indent * 20) + 'px',
+						display: indent > 0 ? 'none' : 'block'
+					},
+					append = !rowstate.row;
+
+				rowstate.row = (rowstate.row || DOM().new('div').class('jsone-row')).attr({'data-expanded': rowstate.expanded, 'data-active': '0'});
+				if(rowstate.changed){
+					rowstate.row.html('')
+					.append(
+						DOM().new('span').class('jsone-row-text').html('<span class="jsone-node-key">'+rowstate.path[rowstate.path.length - 1]+'</span>' + self.getNodeDescription(rowstate.node[rowstate.key], rowstate.type))
+					)
+					.css(css)
+					.attr({
+						'data-children': rowstate.type === 'object' || rowstate.type === 'array' ? '1' : '0',
+					})
+					rowstate.changed = false;
+				}
+				if(append){
+					rowstate.row.appendTo(self.__json_rows)
+					.on('click', function(e) {
+						rowstate.expanded = rowstate.expanded ? 0 : 1
+						self.__state.help = rowstate.joinpath;
+						self.renderState();
+					});
+				}
+
+				if(rowstate.parent){
+					if(self.__state.rows[self.__state.rowsref[rowstate.parent]].expanded){
+						rowstate.row.css({display: ''});
+					} else {
+						rowstate.expanded = 0;
+						rowstate.row.attr({expanded: 0}).css({display: 'none'});
+					}
+				}
+				if(self.__state.help === rowstate.joinpath){
+					rowstate.row.attr({'data-active': '1'})
+					self.renderHelpPath(rowstate.node[rowstate.key], rowstate.path, rowstate.type, 'main');
+				}
+			});
+		}
 
 		self.__node.elements[0].classList.add('jsone');
 		self.__json_rows = DOM().new('div').class('jsone-rows').appendTo(self.__node);
@@ -243,6 +302,8 @@
 				display: 'flex'
 			},
 			'.jsone-rows': {
+				'font-family': 'monospace, Courier New',
+				'font-size': '12px',
 				width: '50%',
 			},
 			'.jsone-help': {
@@ -276,18 +337,47 @@
 			'.jsone-node-helper': {
 				'padding-left': '4px',
 				'font-size': '-1',
-				color: '#999'
+				color: '#CCC'
+			},
+			'.jsone-node-key': {
+				color: '#9936a1'
+			},
+			'.jsone-node-value': {
+				'padding-left': '4px',
+				'font-size': '-1',
+				color: '#666'
 			},
 			'.jsone-help-path': {
-				padding: '4px'
+				padding: '12px'
 			},
 			'.jsone-help-items': {
-				padding: '4px'
+				padding: '0 12px 12px 12px'
+			},
+			'.jsone-help-key': {
+				'font-weight': 'bold'
+			},
+			'.jsone-help-spacer': {
+				padding: '2px 0'
+			},
+			'.jsone-help-section': {
+				'border-top': '1px solid #ccc',
+				padding: '12px 0'
+			},
+			'.jsone-help-section:first': {
+				'border-top-color': '#666'
 			},
 			'.jsone-delimiter': {
 				display: 'inline-block',
 				color: '#666',
 				padding: '0 2px'
+			},
+			'.jsone-input':{
+
+			},
+			'textarea.jsone-input': {
+				width: '100%',
+				border: '1px solid #ccc',
+				'box-sizing': 'border-box'
 			}
 		}, 'jsone-sheet');
 
@@ -400,7 +490,8 @@
 
 		};
 		__mdd.prototype.http = function() {
-			var config = {}, url, callback, ret;
+			var config = {},
+				url, callback, ret;
 			for (var i = arguments.length - 1; i >= 0; i--) {
 				if (typeof arguments[i] === 'object') {
 					config = arguments[i];
@@ -426,7 +517,7 @@
 				if (config.json || config.url.substr(-5) === '.json') {
 					try {
 						ret = JSON.parse(request.responseText);
-					} catch ( e ) {
+					} catch (e) {
 						console.error(e);
 						ret = false;
 					}

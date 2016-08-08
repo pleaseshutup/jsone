@@ -10,14 +10,21 @@
       "min": "1"
     }
   },
+  "name": {
+    "placeholder": "enter name"
+  },
   "description": {
     "type": "string",
     "description": "enter a description",
+    "placeholder": "enter a description",
     "rules": "nah"
   },
   "date": {
     "type": "date",
     "description": "all \"date\" keys are a date everywhere",
     "rules": "must be a valid date"
+  },
+  "/items/*":{
+    "keys": ["name", "description", "date"]
   }
 }
