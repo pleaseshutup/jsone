@@ -21,10 +21,12 @@
 				self.initJSON();
 				return false;
 			}
-			if (typeof json === 'object') {
+			var typeofjson = typeof json;
+
+			if (typeofjson === 'object') {
 				self.__json = json;
 				self.initJSON();
-			} else {
+			} else if (typeofjson === 'string') {
 				__mdd.prototype.http(json, function(json) {
 					if (!json) {
 						console.error('JSONE: Could not load json', json);
@@ -40,15 +42,15 @@
 				// we use node and key to pass by reference
 				var joinpath = path.join('/');
 				var index = self.__state.rows.push({
-						node: node,
-						key: key,
-						path: path,
-						joinpath: joinpath,
-						parent: path.slice(0,-1).join('/'),
-						type: type,
-						changed: true,
-						expanded: 0
-					})
+					node: node,
+					key: key,
+					path: path,
+					joinpath: joinpath,
+					parent: path.slice(0, -1).join('/'),
+					type: type,
+					changed: true,
+					expanded: 0
+				})
 				self.__state.rowsref[joinpath] = index - 1;
 			});
 
@@ -146,12 +148,11 @@
 
 		// exec func on every part of the object, continue looping if the item is an object or array
 		self.loopJSON = function(node, key, path, func) {
-			if(path.length){
+			if (path.length) {
 				var type = self.getNodeType(node[key]);
 				func(node, key, path, type);
 				if (type === 'object' || type === 'array') {
 					for (var k in node[key]) {
-						console.log('loop', k);
 						self.loopJSON(node[key], k, path.concat(k), func);
 					}
 				}
@@ -168,18 +169,19 @@
 			if (type === 'object') {
 				str = node.name || node.title || node.label || node.description;
 				return str ? '<span class="jsone-node-helper">' + str + '</span>' : '';
-			} else if(type === 'number' || type === 'string'){
+			} else if (type === 'number' || type === 'string') {
 				str = node;
 				return str ? '<span class="jsone-node-value">:' + str + '</span>' : '';
-			} else if(type === 'null'){
+			} else if (type === 'null') {
 				return '<span class="jsone-node-helper">null</span>';
 			}
 			return str;
 		};
 
 		//renders each individual key ui segment
-		self.renderHelpSegment = function(node, path, type, into, context) {
-			var secinto = DOM().new('div').class('jsone-help-section').appendTo(into);
+		self.renderHelpSegment = function(node, path, type, into, helpMeta, context) {
+			var secinto = DOM().new('div').class('jsone-help-section').appendTo(into),
+				joinpath = path.join('/');
 
 			self.getRulesForPath(path, function(rules) {
 				if (rules) {
@@ -187,7 +189,9 @@
 						type = rules.type;
 					}
 
-					DOM().new('div').class('jsone-help-key').attr({title: path.join('/') + ' ('+type+')'}).html(path[path.length-1]).appendTo(secinto);
+					DOM().new('div').class('jsone-help-key').attr({
+						title: joinpath + ' (' + type + ')'
+					}).html(path[path.length - 1]).appendTo(secinto);
 					DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
 
 					if (rules.description) {
@@ -195,11 +199,23 @@
 						DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
 					}
 
-					if(type === 'string'){
-						DOM().new('textarea').class('jsone-input').attr({'data-path': path.join('/'), placeholder: rules.placeholder || ''}).text(node || '').appendTo(secinto);
+					if (type === 'string') {
+						helpMeta.editable();
+						DOM().new('textarea').class('jsone-input').attr({
+							placeholder: rules.placeholder || ''
+						}).text(node || '').appendTo(secinto).on('input change', function(e) {
+							helpMeta.inputChangeEvent(e, joinpath)
+						});
 						DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
-					} else if (type === 'number'){
-						DOM().new('input').class('jsone-input').attr({type: 'number','data-path': path.join('/'), placeholder: rules.placeholder || ''}).appendTo(secinto);
+					} else if (type === 'number') {
+						helpMeta.editable();
+						DOM().new('input').class('jsone-input').attr({
+							type: 'number',
+							'data-path': path.join('/'),
+							placeholder: rules.placeholder || ''
+						}).appendTo(secinto).on('input change', function(e) {
+							helpMeta.inputChangeEvent(e, joinpath)
+						});
 						DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
 					}
 				}
@@ -207,7 +223,7 @@
 
 			if (type === 'object') {
 				for (var k in node) {
-					self.renderHelpSegment(node[k], path.concat(k), self.getNodeType(node[k]), into, 'sub');
+					self.renderHelpSegment(node[k], path.concat(k), self.getNodeType(node[k]), into, helpMeta, 'sub');
 				}
 			} else if (type === 'array') {
 
@@ -216,40 +232,77 @@
 		}
 
 		self.renderHelpPath = function(node, path, type) {
-			console.log('rendering help path', node);
 			self.__json_help.html('');
 			DOM().new('div').class('jsone-help-path').html('Path: ' + path.join('<span class="jsone-delimiter">/</span>')).appendTo(self.__json_help);
 
-			var into = DOM().new('form').class('jsone-help-items').appendTo(self.__json_help).on('submit', function(e){
+			var into = DOM().new('form').class('jsone-help-items').appendTo(self.__json_help).on('submit', function(e) {
 				e.preventDefault();
+				helpMeta.save();
+			});
 
-				var changed = false;
-
-				into.find('.jsone-input').elements.forEach(function(el){
-					var joinpath = el.getAttribute('data-path');
-					if(joinpath){
+			var helpMeta = {
+				__is_editable: false,
+				__is_changed: false,
+				__changes: {},
+				editable: function() {
+					if (!helpMeta.__is_editable) {
+						helpMeta.__is_editable = true;
+						saveButton.css({
+							display: ''
+						});
+					}
+				},
+				inputChangeEvent: function(e, joinpath) {
+					var el = e.target;
+					helpMeta.__changes[joinpath] = el.value || '';
+					clearTimeout(helpMeta.__changes_timer);
+					helpMeta.__changes_timer = setTimeout(helpMeta.checkForChanges, 100);
+				},
+				checkForChanges: function() {
+					helpMeta.__is_changed = false;
+					for (var joinpath in helpMeta.__changes) {
 						var rowstate = self.__state.rows[self.__state.rowsref[joinpath]]
-						if(rowstate){
-							if(rowstate.node[rowstate.key] !== el.value){
-								rowstate.node[rowstate.key] = el.value || '';
+						if (rowstate) {
+							if (rowstate.node[rowstate.key] !== helpMeta.__changes[joinpath]) {
+								helpMeta.__is_changed = true;
 								rowstate.changed = true;
-								changed = true;
+							} else {
+								rowstate.changed = false;
+								delete helpMeta.__changes[joinpath];
 							}
 						}
 					}
-				});
-				if(changed){
-					self.renderState();
+					saveButton.attr({
+						disabled: !helpMeta.__is_changed
+					});
+				},
+				save: function() {
+					if (helpMeta.__is_changed) {
+						for (var joinpath in helpMeta.__changes) {
+							var rowstate = self.__state.rows[self.__state.rowsref[joinpath]]
+							if (rowstate) {
+								rowstate.node[rowstate.key] = helpMeta.__changes[joinpath];
+							}
+						}
+						self.renderState();
+					}
+					helpMeta.checkForChanges();
 				}
-			});
+			};
 
-			self.renderHelpSegment(node, path, type, into, 'main');
+			self.renderHelpSegment(node, path, type, into, helpMeta, 'main');
+			var saveButton = DOM().new('input').class('jsone-input').css({
+				display: 'none'
+			}).attr({
+				type: 'submit',
+				value: 'Save',
+				disabled: true
+			}).appendTo(into);
 
-			DOM().new('input').class('jsone-input').attr({type: 'submit', value: 'Save'}).appendTo(into);
 		};
 
-		self.renderState = function(){
-			self.__state.rows.forEach(function(rowstate){
+		self.renderState = function() {
+			self.__state.rows.forEach(function(rowstate) {
 				var indent = rowstate.path.length - 1,
 					css = {
 						'padding-left': (indent * 20) + 'px',
@@ -257,37 +310,48 @@
 					},
 					append = !rowstate.row;
 
-				rowstate.row = (rowstate.row || DOM().new('div').class('jsone-row')).attr({'data-expanded': rowstate.expanded, 'data-active': '0'});
-				if(rowstate.changed){
+				rowstate.row = (rowstate.row || DOM().new('div').class('jsone-row')).attr({
+					'data-expanded': rowstate.expanded,
+					'data-active': '0'
+				});
+				if (rowstate.changed) {
 					rowstate.row.html('')
-					.append(
-						DOM().new('span').class('jsone-row-text').html('<span class="jsone-node-key">'+rowstate.path[rowstate.path.length - 1]+'</span>' + self.getNodeDescription(rowstate.node[rowstate.key], rowstate.type))
-					)
-					.css(css)
-					.attr({
-						'data-children': rowstate.type === 'object' || rowstate.type === 'array' ? '1' : '0',
-					})
+						.append(
+							DOM().new('span').class('jsone-row-text').html('<span class="jsone-node-key">' + rowstate.path[rowstate.path.length - 1] + '</span>' + self.getNodeDescription(rowstate.node[rowstate.key], rowstate.type))
+						)
+						.css(css)
+						.attr({
+							'data-children': rowstate.type === 'object' || rowstate.type === 'array' ? '1' : '0',
+						})
 					rowstate.changed = false;
 				}
-				if(append){
+				if (append) {
 					rowstate.row.appendTo(self.__json_rows)
-					.on('click', function(e) {
-						rowstate.expanded = rowstate.expanded ? 0 : 1
-						self.__state.help = rowstate.joinpath;
-						self.renderState();
-					});
+						.on('click', function(e) {
+							rowstate.expanded = rowstate.expanded ? 0 : 1
+							self.__state.help = rowstate.joinpath;
+							self.renderState();
+						});
 				}
 
-				if(rowstate.parent){
-					if(self.__state.rows[self.__state.rowsref[rowstate.parent]].expanded){
-						rowstate.row.css({display: ''});
+				if (rowstate.parent) {
+					if (self.__state.rows[self.__state.rowsref[rowstate.parent]].expanded) {
+						rowstate.row.css({
+							display: ''
+						});
 					} else {
 						rowstate.expanded = 0;
-						rowstate.row.attr({expanded: 0}).css({display: 'none'});
+						rowstate.row.attr({
+							expanded: 0
+						}).css({
+							display: 'none'
+						});
 					}
 				}
-				if(self.__state.help === rowstate.joinpath){
-					rowstate.row.attr({'data-active': '1'})
+				if (self.__state.help === rowstate.joinpath) {
+					rowstate.row.attr({
+						'data-active': '1'
+					})
 					self.renderHelpPath(rowstate.node[rowstate.key], rowstate.path, rowstate.type, 'main');
 				}
 			});
@@ -371,7 +435,7 @@
 				color: '#666',
 				padding: '0 2px'
 			},
-			'.jsone-input':{
+			'.jsone-input': {
 
 			},
 			'textarea.jsone-input': {
@@ -431,7 +495,15 @@
 		__mdd.prototype.attr = function(attr) {
 			this.elements.forEach(function(element) {
 				for (var K in attr) {
-					element.setAttribute(K, attr[K]);
+					if (typeof attr[K] !== 'boolean') {
+						if (!attr[K] && attr[K] !== 0) {
+							element.removeAttribute(K);
+						} else {
+							element.setAttribute(K, attr[K]);
+						}
+					} else {
+						element[K] = attr[K];
+					}
 				}
 			});
 			return this;
@@ -518,7 +590,7 @@
 					try {
 						ret = JSON.parse(request.responseText);
 					} catch (e) {
-						console.error(e);
+						console.error('JSONE: could not parse json', request.responseText);
 						ret = false;
 					}
 				}

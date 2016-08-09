@@ -1,6 +1,6 @@
 {
-  "__jsone_instructions1": "keys that start with a / are considered relative path instructions. Use * for wildcard",
-  "__jsone_instructions2": "a path is delimited by / (like a . in javascript)",
+
+
   "/config*": {
     "key*": {
       "type": "string",
@@ -24,7 +24,9 @@
     "description": "all \"date\" keys are a date everywhere",
     "rules": "must be a valid date"
   },
-  "/items/*":{
+  "items":{
+    "type": "array",
+    "description": "the sub-elements of this node",
     "keys": ["name", "description", "date"]
   }
 }
