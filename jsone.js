@@ -11,10 +11,10 @@
 		// the node we write into. Take provided node, query selector, id=jsone or just the body
 		self.__node = DOM(config.node || document.querySelector(config.node) || document.getElementById('jsone') || document.body);
 
-
 		self.__state = {
 			rows: [],
 			rowsref: {},
+			conf: {},
 			help: 0
 		};
 
@@ -28,12 +28,14 @@
 
 			if (typeofjson === 'object') {
 				self.__json = json;
+				self.__jsonSaveKey = 'customObject';
 				self.initJSON();
 			} else if (typeofjson === 'string') {
 				__mdd.prototype.http(json, function(json) {
 					if (!json) {
 						console.error('JSONE: Could not load json', json);
 					}
+					self.__jsonSaveKey = 'json';
 					self.json(json);
 				});
 			}
@@ -41,9 +43,14 @@
 
 		// callback for json ready
 		self.initJSON = function() {
+
+			self.getStateConfig(self.__jsonSaveKey);
+			self.__state.help = self.__state.conf.help || '';
+
 			self.loopJSON(self.__json, undefined, [], function(node, key, path, type) {
 				// we use node and key to pass by reference
 				var joinpath = path.join('/');
+
 				var index = self.__state.rows.push({
 					node: node,
 					key: key,
@@ -52,7 +59,7 @@
 					parent: path.slice(0, -1).join('/'),
 					type: type,
 					changed: true,
-					expanded: 0
+					expanded: self.__state.conf.expanded[joinpath] ? '1' : 0
 				})
 				self.__state.rowsref[joinpath] = index - 1;
 			});
@@ -144,9 +151,6 @@
 			return rules;
 		};
 
-		self.json(self.__config.json || self.__config.json);
-		self.schema(self.__config.schema || self.__config.schema);
-
 		self.getNodeType = function(node) {
 			var type = Array.isArray(node) ? 'array' : typeof node;
 			if (type === 'object' && node === null) {
@@ -190,19 +194,22 @@
 		//renders each individual key ui segment
 		self.renderHelpSegment = function(node, path, type, into, helpMeta, context) {
 			var secinto = DOM().new('div').class('jsone-help-section').appendTo(into),
-				joinpath = path.join('/');
+				joinpath = path.join('/'),
+				editType = type,
+				hasContent = false;
 
 			var rules = self.getRulesForPath(path);
 			if (rules.type) {
-				type = rules.type;
+				editType = rules.type;
 			}
 
 			var key = DOM().new('div').class('jsone-help-key').attr({
 				title: joinpath + ' (' + type + ')'
-			}).html(path[path.length - 1]).appendTo(secinto);
+			}).html(path[path.length - 1] + '<span class="jsone-node-colon">:</span>').appendTo(secinto);
+
 			var val = DOM().new('div').class('jsone-help-value').appendTo(secinto);
 
-			if(self.__config.editable.indexOf(type) > -1){
+			if(self.__config.editable.indexOf(editType) > -1){
 				var edit = {
 					node: 'textarea',
 					attr: {
@@ -210,9 +217,9 @@
 					},
 					
 				};
-				if(type === 'number' || type === 'date'){
+				if(editType === 'number' || editType === 'date'){
 					edit.node = 'input';
-					edit.attr.type = type;
+					edit.attr.type = editType;
 					edit.attr.value = node;
 				} else {
 					edit.text = node || ''
@@ -224,15 +231,23 @@
 				if(edit.text){
 					edit.dom.text(edit.text);
 				}
-				DOM().new('div').class('jsone-help-spacer').appendTo(val);
+				hasContent = true;
 			}
 
 			if (rules.description) {
 				DOM().new('div').class('jsone-help-description').html(rules.description).appendTo(val);
-				DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
+				hasContent = true;
 			}
 
-			if (type === 'object' && context == 'main') {
+			if(!hasContent){
+				secinto.css({display: 'block'}).html('');
+			}
+
+			if (editType === 'object' && context == 'main') {
+				// fixes null or converts to proper object type for editing
+				if(type !== 'object'){
+					node = {};
+				}
 				var useKeys = rules.keys || [];
 				Object.keys(node).forEach(function(k){
 					if(useKeys.indexOf(k) < 0){ useKeys.push(k); }
@@ -308,11 +323,24 @@
 				type: 'submit',
 				value: 'Save',
 				disabled: true
-			}).appendTo(into);
+			});
+
+			var saveButtonHolder = DOM().new('div').class('jsone-help-section').appendTo(into)
+			.append(DOM().new('div').class('jsone-help-key'))
+			.append(DOM().new('div').class('jsone-help-value').append(saveButton))
+			.appendTo(into);
 
 		};
 
 		self.renderState = function() {
+
+			//conf is the state settings we store in local storage and try to load on refresh
+			self.__state.conf = {
+				__jsone_saveKey: self.__jsonSaveKey,
+				expanded: {},
+				help: self.__state.help
+			};
+
 			self.__state.rows.forEach(function(rowstate) {
 				var indent = rowstate.path.length - 1,
 					css = {
@@ -359,6 +387,11 @@
 						});
 					}
 				}
+
+				if(rowstate.expanded){
+					self.__state.conf.expanded[rowstate.joinpath] = true;
+				}
+
 				if (self.__state.help === rowstate.joinpath) {
 					rowstate.row.attr({
 						'data-active': '1'
@@ -366,11 +399,41 @@
 					self.renderHelpPath(rowstate.node[rowstate.key], rowstate.path, rowstate.type, 'main');
 				}
 			});
+
+			self.saveStateConfig();
+		}
+
+		self.saveStateConfig = function(){
+			clearTimeout(self.saveConfigTimer);
+			self.saveConfigTimer = setTimeout(function(){
+				window.localStorage.setItem('jsone_state_config', JSON.stringify(self.__state.conf));
+			}, 100);
+		}
+		self.getStateConfig = function(key){
+			var config = window.localStorage.getItem('jsone_state_config');
+			if(config){
+				try{
+					config = JSON.parse(config);
+				} catch (e){
+					config = {};
+				}
+			} else {
+				config = {};
+			}
+			if(!config.expanded){
+				config.expanded = {}
+			}
+			console.log('config', config);
+			config.__jsone_saveKey === key ? self.__state.conf = config : self.__state.conf = config = {};
+			return;
 		}
 
 		self.__node.elements[0].classList.add('jsone');
 		self.__json_rows = DOM().new('div').class('jsone-rows').appendTo(self.__node);
 		self.__json_help = DOM().new('div').class('jsone-help').appendTo(self.__node);
+
+		self.schema(self.__config.schema);
+		self.json(self.__config.json);
 
 		__mdd.prototype.stylesheet({
 			'.jsone': {
@@ -418,7 +481,7 @@
 				color: '#9936a1'
 			},
 			'.jsone-node-colon': {
-				padding: '0 2px'
+				'margin-right': '2px'
 			},
 			'.jsone-node-value': {
 				color: '#666'
@@ -450,9 +513,6 @@
 			'.jsone-help-description': {
 				color: '#999'
 			},
-			'.jsone-help-spacer': {
-				padding: '2px 0'
-			},
 			'.jsone-help-section': {
 				display: 'table-row',
 			},
@@ -465,14 +525,15 @@
 				padding: '0 2px'
 			},
 			'.jsone-input': {
-
-			},
-			'textarea.jsone-input': {
-				width: '100%',
-				height: '22px',
-				border: '0',
+				margin: 0,
+				padding: 0,
+				border: 0,
 				background: 'transparent',
 				'box-sizing': 'border-box'
+			},
+			'textarea.jsone-input': {
+				height: '22px',
+				width: '100%'
 			}
 		}, 'jsone-sheet');
 
