@@ -5,6 +5,9 @@
 		var self = this;
 
 		self.__config = config || {};
+		if(!Array.isArray(self.__config.editable)){
+			self.__config.editable = ['string', 'number', 'date']
+		}
 		// the node we write into. Take provided node, query selector, id=jsone or just the body
 		self.__node = DOM(config.node || document.querySelector(config.node) || document.getElementById('jsone') || document.body);
 
@@ -126,13 +129,19 @@
 
 		self.getRulesForPath = function(path, callback) {
 			var rules = {};
+
+			if(path.length > 1){
+				rules.parent = {};
+				self.loopRulesForPath(rules.parent, path.slice(0,-1), self.__schema);
+				if(rules.parent.children){
+					for(var k in rules.parent.children){
+						rules[k] = rules.parent.children[k];
+					}
+				}
+			}
 			self.loopRulesForPath(rules, path, self.__schema);
 
-			setTimeout(function() {
-				callback(JSON.parse(JSON.stringify(rules || {})));
-			}, 1);
-
-			return false;
+			return rules;
 		};
 
 		self.json(self.__config.json || self.__config.json);
@@ -171,7 +180,7 @@
 				return str ? '<span class="jsone-node-helper">' + str + '</span>' : '';
 			} else if (type === 'number' || type === 'string') {
 				str = node;
-				return str ? '<span class="jsone-node-value">:' + str + '</span>' : '';
+				return str ? '<span class="jsone-node-colon">:</span><span class="jsone-node-value">' + str + '</span>' : '';
 			} else if (type === 'null') {
 				return '<span class="jsone-node-helper">null</span>';
 			}
@@ -183,50 +192,54 @@
 			var secinto = DOM().new('div').class('jsone-help-section').appendTo(into),
 				joinpath = path.join('/');
 
-			self.getRulesForPath(path, function(rules) {
-				if (rules) {
-					if (rules.type) {
-						type = rules.type;
-					}
+			var rules = self.getRulesForPath(path);
+			if (rules.type) {
+				type = rules.type;
+			}
 
-					DOM().new('div').class('jsone-help-key').attr({
-						title: joinpath + ' (' + type + ')'
-					}).html(path[path.length - 1]).appendTo(secinto);
-					DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
+			var key = DOM().new('div').class('jsone-help-key').attr({
+				title: joinpath + ' (' + type + ')'
+			}).html(path[path.length - 1]).appendTo(secinto);
+			var val = DOM().new('div').class('jsone-help-value').appendTo(secinto);
 
-					if (rules.description) {
-						DOM().new('div').class('jsone-help-description').html(rules.description).appendTo(secinto);
-						DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
-					}
-
-					if (type === 'string') {
-						helpMeta.editable();
-						DOM().new('textarea').class('jsone-input').attr({
-							placeholder: rules.placeholder || ''
-						}).text(node || '').appendTo(secinto).on('input change', function(e) {
-							helpMeta.inputChangeEvent(e, joinpath)
-						});
-						DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
-					} else if (type === 'number') {
-						helpMeta.editable();
-						DOM().new('input').class('jsone-input').attr({
-							type: 'number',
-							'data-path': path.join('/'),
-							placeholder: rules.placeholder || ''
-						}).appendTo(secinto).on('input change', function(e) {
-							helpMeta.inputChangeEvent(e, joinpath)
-						});
-						DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
-					}
+			if(self.__config.editable.indexOf(type) > -1){
+				var edit = {
+					node: 'textarea',
+					attr: {
+						placeholder: rules.placeholder || ''
+					},
+					
+				};
+				if(type === 'number' || type === 'date'){
+					edit.node = 'input';
+					edit.attr.type = type;
+					edit.attr.value = node;
+				} else {
+					edit.text = node || ''
 				}
-			});
+				helpMeta.editable();
+				edit.dom = DOM().new(edit.node).class('jsone-input').attr(edit.attr).appendTo(val).on('input change', function(e) {
+					helpMeta.inputChangeEvent(e, joinpath)
+				});
+				if(edit.text){
+					edit.dom.text(edit.text);
+				}
+				DOM().new('div').class('jsone-help-spacer').appendTo(val);
+			}
 
-			if (type === 'object') {
-				for (var k in node) {
+			if (rules.description) {
+				DOM().new('div').class('jsone-help-description').html(rules.description).appendTo(val);
+				DOM().new('div').class('jsone-help-spacer').appendTo(secinto);
+			}
+
+			if (type === 'object' && context == 'main') {
+				var useKeys = rules.keys || [];
+				Object.keys(node).forEach(function(k){
+					if(useKeys.indexOf(k) < 0){ useKeys.push(k); }
+				});
+				useKeys.forEach(function(k){
 					self.renderHelpSegment(node[k], path.concat(k), self.getNodeType(node[k]), into, helpMeta, 'sub');
-				}
-			} else if (type === 'array') {
-
+				})
 			}
 
 		}
@@ -247,9 +260,6 @@
 				editable: function() {
 					if (!helpMeta.__is_editable) {
 						helpMeta.__is_editable = true;
-						saveButton.css({
-							display: ''
-						});
 					}
 				},
 				inputChangeEvent: function(e, joinpath) {
@@ -291,8 +301,9 @@
 			};
 
 			self.renderHelpSegment(node, path, type, into, helpMeta, 'main');
+
 			var saveButton = DOM().new('input').class('jsone-input').css({
-				display: 'none'
+				display: helpMeta.__is_editable ? '' : 'none'
 			}).attr({
 				type: 'submit',
 				value: 'Save',
@@ -321,14 +332,14 @@
 						)
 						.css(css)
 						.attr({
-							'data-children': rowstate.type === 'object' || rowstate.type === 'array' ? '1' : '0',
+							'data-children': (rowstate.type !== 'object' && rowstate.type !== 'array') ? '0' : '1'
 						})
 					rowstate.changed = false;
 				}
 				if (append) {
 					rowstate.row.appendTo(self.__json_rows)
 						.on('click', function(e) {
-							rowstate.expanded = rowstate.expanded ? 0 : 1
+							rowstate.expanded = rowstate.expanded || (rowstate.type !== 'object' && rowstate.type !== 'array') ? 0 : 1
 							self.__state.help = rowstate.joinpath;
 							self.renderState();
 						});
@@ -371,14 +382,14 @@
 				width: '50%',
 			},
 			'.jsone-help': {
-				'background-color': '#eaeaea',
+				'background-color': '#f1f1f1',
 				width: '50%',
 			},
 			'.jsone-row': {
 				cursor: 'pointer'
 			},
 			'.jsone-row:hover': {
-				'background-color': '#eaeaea'
+				'background-color': '#f1f1f1'
 			},
 			'.jsone-row-text': {
 				display: 'inline-block',
@@ -396,7 +407,7 @@
 				content: '"–"'
 			},
 			'.jsone-row[data-active="1"]': {
-				'background-color': '#eaeaea'
+				'background-color': '#f1f1f1'
 			},
 			'.jsone-node-helper': {
 				'padding-left': '4px',
@@ -406,9 +417,10 @@
 			'.jsone-node-key': {
 				color: '#9936a1'
 			},
+			'.jsone-node-colon': {
+				padding: '0 2px'
+			},
 			'.jsone-node-value': {
-				'padding-left': '4px',
-				'font-size': '-1',
 				color: '#666'
 			},
 			'.jsone-help-path': {
@@ -418,14 +430,31 @@
 				padding: '0 12px 12px 12px'
 			},
 			'.jsone-help-key': {
+				'border-top': '1px solid #ddd',
+				'text-align': 'right',
+				padding: '12px 4px 12px 0',
+				display: 'table-cell',
+				'vertical-align': 'top',
+				'max-width': '200px',
+				overflow: 'hidden',
 				'font-weight': 'bold'
+			},
+			'.jsone-help-value': {
+				padding: '12px 0',
+				'border-top': '1px solid #ddd',
+				display: 'table-cell',
+				'vertical-align': 'top',
+				width: '100%',
+				'max-width': 'calc(100% - 200px)'
+			},
+			'.jsone-help-description': {
+				color: '#999'
 			},
 			'.jsone-help-spacer': {
 				padding: '2px 0'
 			},
 			'.jsone-help-section': {
-				'border-top': '1px solid #ccc',
-				padding: '12px 0'
+				display: 'table-row',
 			},
 			'.jsone-help-section:first': {
 				'border-top-color': '#666'
@@ -440,7 +469,9 @@
 			},
 			'textarea.jsone-input': {
 				width: '100%',
-				border: '1px solid #ccc',
+				height: '22px',
+				border: '0',
+				background: 'transparent',
 				'box-sizing': 'border-box'
 			}
 		}, 'jsone-sheet');

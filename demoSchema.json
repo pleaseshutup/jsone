@@ -1,6 +1,7 @@
 {
-
-
+  "/": {
+    "description": "Select a row to edit"
+  },
   "/config*": {
     "key*": {
       "type": "string",
@@ -11,7 +12,8 @@
     }
   },
   "name": {
-    "placeholder": "enter name"
+    "placeholder": "enter name",
+    "description": "keep the names short please"
   },
   "description": {
     "type": "string",
@@ -24,9 +26,11 @@
     "description": "all \"date\" keys are a date everywhere",
     "rules": "must be a valid date"
   },
-  "items":{
+  "items": {
     "type": "array",
     "description": "the sub-elements of this node",
-    "keys": ["name", "description", "date"]
+    "children": {
+      "keys": ["name", "description", "date"]
+    }
   }
 }
