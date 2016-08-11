@@ -2,7 +2,7 @@
   "/": {
     "description": "Select a row to edit"
   },
-  "/config*": {
+  "/config": {
     "key*": {
       "type": "string",
       "description": "enter a value for this key",
@@ -31,7 +31,8 @@
     "description": "the sub-elements of this node",
     "children": {
       "type": "object",
-      "keys": ["name", "description", "date"]
+      "properties": ["name", "description", "date"],
+      "required": ["name"]
     }
   }
 }

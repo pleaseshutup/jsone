@@ -13,30 +13,55 @@
 			}
 			#jsone-logs{
 				background-color:#666;
+				color: #ccc;
 				max-height: 200px;
 				overflow:auto;
+			}
+			#jsone-logs div{
+				white-space:nowrap;
+				padding:4px 4px 0 4px;
+			}
+			#jsone-logs div:last-child{
+				padding-bottom: 4px;
+			}
+			#jsone-logs div b{
+				color:#fff;
 			}
 		</style>
 	</head>
 	<body>
 
 		<div id="jsone"></div>
+		<br><br>
+		<div>Event Logs</div>
 		<div id="jsone-logs"></div>
 		<script src="jsone.js"></script>
 
 		<script>
-
 			var demo = new jsone({
 					node: document.getElementById('jsone'),
 					json: 'demoJSON.json',
 					schema: 'demoSchema.json'
 				});
-			
+
+			demo.on('event', function(type, value){
+				jsoneLog(type, value)
+			})
 		</script>
 
 		<script>
+
+			var DOM = function(sel, target) {
+				return new __mdd(sel, target);
+			};
 			// demo/local dev helpers
-			
+			var logdiv = document.getElementById('jsone-logs');
+			function jsoneLog(type, val){
+				console.log('jsone event', type, val)
+				DOM().new('div').html('<b>'+type+':</b> '+JSON.stringify(val)).appendTo(DOM(logdiv))
+				logdiv.scrollTop = logdiv.scrollHeight;
+			}
 		</script>
+
 	</body>
 </html>

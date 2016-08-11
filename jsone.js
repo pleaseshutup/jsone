@@ -31,9 +31,9 @@
 				self.__jsonSaveKey = 'customObject';
 				self.initJSON();
 			} else if (typeofjson === 'string') {
-				__mdd.prototype.http(json, function(json) {
+				__mdd.prototype.http(json, function(err, json) {
 					if (!json) {
-						console.error('JSONE: Could not load json', json);
+						self.emit('error', 'request error '+err);
 					}
 					self.__jsonSaveKey = 'json';
 					self.json(json);
@@ -58,16 +58,19 @@
 					joinpath: joinpath,
 					parent: path.slice(0, -1).join('/'),
 					type: type,
+					rules: self.getRulesForPath(path, type),
 					changed: true,
 					expanded: self.__state.conf.expanded[joinpath] ? '1' : 0
 				})
 				self.__state.rowsref[joinpath] = index - 1;
 			});
 
+			self.emit('jsonready', true);
 			self.renderState();
 		};
 
 		// accept a javascript object for the scheme or a URL
+		// schema is loaded first and then the json so it can auto fix based on the rules
 		self.schema = function(schema) {
 			if (!schema) {
 				self.__schema = {};
@@ -75,10 +78,12 @@
 			}
 			if (typeof schema === 'object') {
 				self.__schema = schema;
+				self.emit('schemaready', true);
+				self.json(self.__config.json);
 			} else {
-				__mdd.prototype.http(schema, function(schema) {
+				__mdd.prototype.http(schema, function(err, schema) {
 					if (!schema) {
-						console.error('JSONE: Could not load schema', schema);
+						self.emit('error', 'request error'+err);
 					}
 					self.schema(schema);
 				});
@@ -134,10 +139,11 @@
 			}
 		};
 
-		self.getRulesForPath = function(path, callback) {
+		self.getRulesForPath = function(path, type) {
 			var rules = {};
 
-			if(path.length > 1){
+			// get rules for parent if type is object
+			if(path.length > 1 && type === 'object'){
 				rules.parent = {};
 				self.loopRulesForPath(rules.parent, path.slice(0,-1), self.__schema);
 				if(rules.parent.children){
@@ -176,6 +182,25 @@
 			}
 		};
 
+		self.initTempRow = function(parentRowstate, key){
+			console.log('init temp', parentRowstate);
+			var newPath = parentRowstate.path.concat(key),
+				joinpath = newPath.join('/'),
+				rules = self.getRulesForPath(newPath, undefined);
+			var rowstate = {
+					node: parentRowstate.node[parentRowState.key],
+					key: key,
+					path: newPath,
+					joinpath: joinpath,
+					parent: parentRowstate.joinpath,
+					type: rules.type || 'string',
+					rules: rules,
+					changed: true,
+					expanded: 0
+				};
+			return rowstate;
+		};
+
 		// tries to provide some helpful extra information on the current node row like the name or description or value of the node
 		self.getNodeDescription = function(node, type) {
 			var str = '';
@@ -192,20 +217,19 @@
 		};
 
 		//renders each individual key ui segment
-		self.renderHelpSegment = function(node, path, type, into, helpMeta, context) {
+		self.renderHelpSegment = function(rowstate, into, helpMeta, context) {
 			var secinto = DOM().new('div').class('jsone-help-section').appendTo(into),
-				joinpath = path.join('/'),
-				editType = type,
+				editType = rowstate.type,
 				hasContent = false;
 
-			var rules = self.getRulesForPath(path);
-			if (rules.type) {
-				editType = rules.type;
+
+			if (rowstate.rules.type) {
+				editType = rowstate.rules.type;
 			}
 
 			var key = DOM().new('div').class('jsone-help-key').attr({
-				title: joinpath + ' (' + type + ')'
-			}).html(path[path.length - 1] + '<span class="jsone-node-colon">:</span>').appendTo(secinto);
+				title: rowstate.joinpath + ' (' + rowstate.type + ')'
+			}).html(rowstate.path[rowstate.path.length - 1] + '<span class="jsone-node-colon">:</span>').appendTo(secinto);
 
 			var val = DOM().new('div').class('jsone-help-value').appendTo(secinto);
 
@@ -213,20 +237,20 @@
 				var edit = {
 					node: 'textarea',
 					attr: {
-						placeholder: rules.placeholder || ''
+						placeholder: rowstate.rules.placeholder || ''
 					},
 					
 				};
 				if(editType === 'number' || editType === 'date'){
 					edit.node = 'input';
 					edit.attr.type = editType;
-					edit.attr.value = node;
+					edit.attr.value = rowstate.node[rowstate.key];
 				} else {
-					edit.text = node || ''
+					edit.text = rowstate.node[rowstate.key] || ''
 				}
 				helpMeta.editable();
 				edit.dom = DOM().new(edit.node).class('jsone-input').attr(edit.attr).appendTo(val).on('input change', function(e) {
-					helpMeta.inputChangeEvent(e, joinpath)
+					helpMeta.inputChangeEvent(e, rowstate.joinpath)
 				});
 				if(edit.text){
 					edit.dom.text(edit.text);
@@ -234,8 +258,8 @@
 				hasContent = true;
 			}
 
-			if (rules.description) {
-				DOM().new('div').class('jsone-help-description').html(rules.description).appendTo(val);
+			if (rowstate.rules.description) {
+				DOM().new('div').class('jsone-help-description').html(rowstate.rules.description).appendTo(val);
 				hasContent = true;
 			}
 
@@ -245,23 +269,25 @@
 
 			if (editType === 'object' && context == 'main') {
 				// fixes null or converts to proper object type for editing
-				if(type !== 'object'){
-					node = {};
+				if(rowstate.type !== 'object'){
+					rowstate.node[rowstate.key] = {};
+					self.emit('autofix', {path: rowstate.path, reason: 'type', typeFrom: rowstate.type, typeTo: editType, object:self.__json});
 				}
-				var useKeys = rules.keys || [];
-				Object.keys(node).forEach(function(k){
+				var useKeys = rowstate.rules.properties || [];
+				Object.keys(rowstate.node[rowstate.key]).forEach(function(k){
 					if(useKeys.indexOf(k) < 0){ useKeys.push(k); }
 				});
 				useKeys.forEach(function(k){
-					self.renderHelpSegment(node[k], path.concat(k), self.getNodeType(node[k]), into, helpMeta, 'sub');
+					var newRowState = self.__state.rows[self.__state.rowsref[rowstate.path.concat(k).join('/')]] || self.initTempRow(rowstate, k);
+					self.renderHelpSegment(newRowState, into, helpMeta, 'sub');
 				})
 			}
 
 		}
 
-		self.renderHelpPath = function(node, path, type) {
+		self.renderHelpPath = function(rowstate) {
 			self.__json_help.html('');
-			DOM().new('div').class('jsone-help-path').html('Path: ' + path.join('<span class="jsone-delimiter">/</span>')).appendTo(self.__json_help);
+			DOM().new('div').class('jsone-help-path').html('Path: ' + rowstate.path.join('<span class="jsone-delimiter">/</span>')).appendTo(self.__json_help);
 
 			var into = DOM().new('form').class('jsone-help-items').appendTo(self.__json_help).on('submit', function(e) {
 				e.preventDefault();
@@ -272,6 +298,7 @@
 				__is_editable: false,
 				__is_changed: false,
 				__changes: {},
+				__changed_paths: [],
 				editable: function() {
 					if (!helpMeta.__is_editable) {
 						helpMeta.__is_editable = true;
@@ -286,36 +313,40 @@
 				checkForChanges: function() {
 					helpMeta.__is_changed = false;
 					for (var joinpath in helpMeta.__changes) {
-						var rowstate = self.__state.rows[self.__state.rowsref[joinpath]]
-						if (rowstate) {
-							if (rowstate.node[rowstate.key] !== helpMeta.__changes[joinpath]) {
+						var checkrowstate = self.__state.rows[self.__state.rowsref[joinpath]]
+						if (checkrowstate) {
+							if (checkrowstate.node[checkrowstate.key] !== helpMeta.__changes[joinpath]) {
 								helpMeta.__is_changed = true;
-								rowstate.changed = true;
+								checkrowstate.changed = true;
 							} else {
-								rowstate.changed = false;
+								checkrowstate.changed = false;
 								delete helpMeta.__changes[joinpath];
 							}
 						}
 					}
+					if(helpMeta.__is_changed){
+						self.emit('change', helpMeta.__changes)
+					}
 					saveButton.attr({
 						disabled: !helpMeta.__is_changed
-					});
-				},
+					})
+;				},
 				save: function() {
 					if (helpMeta.__is_changed) {
 						for (var joinpath in helpMeta.__changes) {
-							var rowstate = self.__state.rows[self.__state.rowsref[joinpath]]
-							if (rowstate) {
-								rowstate.node[rowstate.key] = helpMeta.__changes[joinpath];
+							var checkrowstate = self.__state.rows[self.__state.rowsref[joinpath]]
+							if (checkrowstate) {
+								checkrowstate.node[checkrowstate.key] = helpMeta.__changes[joinpath];
 							}
 						}
+						self.emit('save', self.__json)
 						self.renderState();
 					}
 					helpMeta.checkForChanges();
 				}
 			};
 
-			self.renderHelpSegment(node, path, type, into, helpMeta, 'main');
+			self.renderHelpSegment(rowstate, into, helpMeta, 'main');
 
 			var saveButton = DOM().new('input').class('jsone-input').css({
 				display: helpMeta.__is_editable ? '' : 'none'
@@ -396,7 +427,7 @@
 					rowstate.row.attr({
 						'data-active': '1'
 					})
-					self.renderHelpPath(rowstate.node[rowstate.key], rowstate.path, rowstate.type, 'main');
+					self.renderHelpPath(rowstate);
 				}
 			});
 
@@ -423,7 +454,6 @@
 			if(!config.expanded){
 				config.expanded = {}
 			}
-			console.log('config', config);
 			config.__jsone_saveKey === key ? self.__state.conf = config : self.__state.conf = config = {};
 			return;
 		}
@@ -432,8 +462,27 @@
 		self.__json_rows = DOM().new('div').class('jsone-rows').appendTo(self.__node);
 		self.__json_help = DOM().new('div').class('jsone-help').appendTo(self.__node);
 
-		self.schema(self.__config.schema);
-		self.json(self.__config.json);
+		self.__listeners = {};
+		self.emit = function(event, value){
+			// imit to the general listener "event" and the specified event
+			if(self.__listeners.event){
+				self.__listeners.event(event, value);
+			}
+			if(self.__listeners[event]){
+				self.__listeners[event](event, value);
+			}
+		}
+
+		self.on = function(event, func){
+			if(typeof func === 'function'){
+				self.__listeners[event] = func;
+			}
+		}
+
+		setTimeout(function(){
+			self.schema(self.__config.schema);
+			self.emit('init', true);
+		},0)
 
 		__mdd.prototype.stylesheet({
 			'.jsone': {
@@ -534,6 +583,17 @@
 			'textarea.jsone-input': {
 				height: '22px',
 				width: '100%'
+			},
+			'.jsone-input[type="submit"]': {
+				padding: '10px 20px',
+				color: '#fff',
+				'background-color': '#2196F3',
+				'border-radius': '2px',
+				'box-shadow': '0 2px 5px 0 rgba(0,0,0,0.16),0 2px 10px 0 rgba(0,0,0,0.12)'
+			},
+			'.jsone-input[type="submit"]:disabled': {
+				color: '#9F9F9F',
+				'background-color': '#DFDFDF'
 			}
 		}, 'jsone-sheet');
 
@@ -674,6 +734,7 @@
 			request.open(config.type, config.url, true);
 			request.timeout = config.timeout || 5000;
 			request.onload = function() {
+				var err = false;
 				ret = false;
 				if (request.status >= 200 && request.status < 400) {
 					ret = request.responseText;
@@ -682,17 +743,17 @@
 					try {
 						ret = JSON.parse(request.responseText);
 					} catch (e) {
-						console.error('JSONE: could not parse json', request.responseText);
+						err = 'could not parse json from url: '+config.url
 						ret = false;
 					}
 				}
-				config.callback(ret);
+				config.callback(err, ret);
 			};
-			request.onerror = function() {
-				config.callback(false);
+			request.onerror = function(err) {
+				config.callback(err, false);
 			};
-			request.ontimeout = function() {
-				config.callback(false);
+			request.ontimeout = function(err) {
+				config.callback('timeout', false);
 			};
 			request.send(config.data);
 		};
