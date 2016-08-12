@@ -20,6 +20,9 @@ var demo = new jsone({
 "schema": "" // a javascript object or the URL to the JSON file to use as the schema/rules for the JSON file
 }
 
+### Schema
+The schema's used with jsone try to conform to the jsone schema spec at http://json-schema.org/ and use the same structure of properties, items, definitions and references. It should be compatible with the structure starting now and feature gaps will be filled over time.
+
 ### Local Dev/Local Demo
 Needs to run on localhost for XMLHttpRequest to grab files from the local disk.
 

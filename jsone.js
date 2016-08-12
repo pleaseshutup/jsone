@@ -5,8 +5,8 @@
 		var self = this;
 
 		self.__config = config || {};
-		if(!Array.isArray(self.__config.editable)){
-			self.__config.editable = ['string', 'number', 'date']
+		if (!Array.isArray(self.__config.editable)) {
+			self.__config.editable = ['string', 'number', 'date'];
 		}
 		// the node we write into. Take provided node, query selector, id=jsone or just the body
 		self.__node = DOM(config.node || document.querySelector(config.node) || document.getElementById('jsone') || document.body);
@@ -16,6 +16,19 @@
 			rowsref: {},
 			conf: {},
 			help: 0
+		};
+
+		self.getFromPath = function(obj, path) {
+			var cur = obj,
+				fail = false;
+			path.forEach(function(k) {
+				if (typeof cur[k] !== 'undefined') {
+					cur = cur[k];
+				} else {
+					fail = true;
+				}
+			});
+			return fail ? false : cur;
 		};
 
 		// accept a javascript object or a URL to one
@@ -33,7 +46,7 @@
 			} else if (typeofjson === 'string') {
 				__mdd.prototype.http(json, function(err, json) {
 					if (!json) {
-						self.emit('error', 'request error '+err);
+						self.emit('error', 'request error ' + err);
 					}
 					self.__jsonSaveKey = 'json';
 					self.json(json);
@@ -58,10 +71,10 @@
 					joinpath: joinpath,
 					parent: path.slice(0, -1).join('/'),
 					type: type,
-					rules: self.getRulesForPath(path, type),
+					schema: self.getSchemaForPath(path),
 					changed: true,
 					expanded: self.__state.conf.expanded[joinpath] ? '1' : 0
-				})
+				});
 				self.__state.rowsref[joinpath] = index - 1;
 			});
 
@@ -69,8 +82,105 @@
 			self.renderState();
 		};
 
+		// first pass gets all $ref's which require async operations
+		self.schemaGetRefs = function(node, callback) {
+
+			var refs = [];
+
+			var buildRefList = function(node) {
+				if (typeof node === 'object' && node) {
+					for (var k in node) {
+						if (typeof node[k] === 'object') {
+							if (node[k].$ref) {
+								var url = node[k].$ref.split('#')[0];
+								if (url) {
+									if (refs.indexOf(url) < 0) {
+										refs.push(url);
+									}
+								}
+							} else {
+								buildRefList(node[k]);
+							}
+						}
+					}
+				}
+			};
+
+			var setRefs = function(node) {
+				if (typeof node === 'object' && node) {
+					for (var k in node) {
+						if (typeof node[k] === 'object') {
+							if (node[k].$ref) {
+								var spl = node[k].$ref.split('#');
+								var url = spl[0] || '';
+								var path = spl[1] || '';
+								if (path[0] === '/') {
+									path = path.substr(1);
+								}
+								var useObject = self.__refs[url] || self.__schema;
+								node[k] = self.getFromPath(useObject, path.split('/'));
+							} else {
+								setRefs(node[k]);
+							}
+						}
+					}
+				}
+
+			};
+
+			buildRefList(node);
+
+			var out = 0,
+				done = 0,
+				error = false,
+				complete = function() {
+					done++;
+					if (done === out) {
+						setRefs(node);
+						callback(error, true);
+					}
+				};
+			out++;
+			refs.forEach(function(url) {
+				out++;
+				if (self.__refs[url]) {
+					setTimeout(complete, 0); // timing i guess
+				} else {
+					__mdd.prototype.http(url, function(err, schema) {
+						if (!schema) {
+							self.emit('error', 'ref schema request error' + err);
+							error = new Error('could not get or parse reference schema ' + url);
+							setTimeout(complete, 0); // timing i guess
+						} else {
+							self.__refs[url] = schema;
+							self.schemaGetRefs(schema, function(err, success) {
+								if (err) {
+									error = new Error('could not build sub-schema');
+								}
+								complete();
+							});
+						}
+
+					});
+				}
+			});
+			setTimeout(complete, 0); // timing i guess
+
+		};
+
+		self.initSchema = function(schema) {
+			self.__ref_urls = [];
+			self.__refs = {};
+			console.log('schema', schema);
+			self.schemaGetRefs(schema, function(err, success) {
+				self.emit('schemaready', true);
+				console.log('schema parsed', schema);
+				self.json(self.__config.json);
+			});
+		};
+
 		// accept a javascript object for the scheme or a URL
-		// schema is loaded first and then the json so it can auto fix based on the rules
+		// schema is loaded first and then the json so it can auto fix based on the schema
 		self.schema = function(schema) {
 			if (!schema) {
 				self.__schema = {};
@@ -78,83 +188,66 @@
 			}
 			if (typeof schema === 'object') {
 				self.__schema = schema;
-				self.emit('schemaready', true);
-				self.json(self.__config.json);
+				self.initSchema(self.__schema);
 			} else {
 				__mdd.prototype.http(schema, function(err, schema) {
 					if (!schema) {
-						self.emit('error', 'request error'+err);
+						self.emit('error', 'request error' + err);
 					}
 					self.schema(schema);
 				});
 			}
 		};
 
-		// keys all matching keys from the rule path including wildcards
-		self.loopRulesForKey = function(rules, key) {
-			if (rules[key]) {
+		self.getSchemaForPath = function(path) {
 
-			}
-			// find wildcard keys to add to rules
-			Object.keys(rules).filter(function(ruleKey) {
-				return ruleKey.indexOf('*') > -1;
-			}).forEach(function(ruleKey) {
-				if (new RegExp(ruleKey.replace(/\*/, '\\S'), 'gi').test(key)) {
-					for (var k in rules[keys]) {
-						rules[key] = rules[ruleKey][k];
-					}
-				}
-			});
+			var checkSchemas = {
+					0: [self.__schema]
+				},
+				schema = {};
 
 
-		};
+			path.forEach(function(key, i) {
+				var nextSchemas = [];
 
-		self.loopRulesForKey = function(rules, ruleSet, ruleKey, key) {
-			var checkRegex = ruleKey.indexOf('*') > -1 ? new RegExp(ruleKey.replace(/\*/, '\\S'), 'gi').test(key) : false;
-			if (checkRegex || ruleKey === key) {
-				for (var prop in ruleSet) {
-					rules[prop] = ruleSet[prop];
-				}
-			}
-		};
-
-		self.loopRulesForPath = function(rules, rulesPath, node) {
-			var key = rulesPath[rulesPath.length - 1];
-			for (var k in node) {
-				if (k[0] !== '/') {
-					self.loopRulesForKey(rules, node[k], k, key);
-				} else {
-					// this is a path, check if it is valid
-					var checkRegex = k.indexOf('*') > -1 ? new RegExp(k.substr(1).replace(/\*/, '\\S'), 'gi').test(rulesPath) : false;
-					if (checkRegex || rulesPath === k) {
-						for (var ruleKey in node[k]) {
-							if (ruleKey[0] === '/') {
-								self.loopRulesForPath(rules, rulesPath, node[k]);
-							} else {
-								self.loopRulesForKey(rules, node[k][ruleKey], ruleKey, key);
-							}
+				if(i > 0){
+					var parentPath = path.slice(0, i);
+					if (self.__state.rows[self.__state.rowsref[parentPath.join('/')]].type === 'array') {
+						var itemSchema = self.getSchemaForPath(parentPath);
+						if (itemSchema.items) {
+							nextSchemas.push(itemSchema.items);
 						}
 					}
 				}
-			}
-		};
 
-		self.getRulesForPath = function(path, type) {
-			var rules = {};
-
-			// get rules for parent if type is object
-			if(path.length > 1 && type === 'object'){
-				rules.parent = {};
-				self.loopRulesForPath(rules.parent, path.slice(0,-1), self.__schema);
-				if(rules.parent.children){
-					for(var k in rules.parent.children){
-						rules[k] = rules.parent.children[k];
-					}
+				if (checkSchemas[i]) {
+					checkSchemas[i].forEach(function(schema) {
+						if (schema.properties) {
+							if (schema.properties[key]) {
+								nextSchemas.push(schema.properties[key]);
+							}
+						}
+						if (schema.patternProperties) {
+							for (var pattern in schema.patternProperties) {
+								var re = new RegExp(pattern);
+								if (re.test(key)) {
+									nextSchemas.push(schema.patternProperties[pattern]);
+								}
+							}
+						}
+					});
 				}
-			}
-			self.loopRulesForPath(rules, path, self.__schema);
+				checkSchemas[i + 1] = (checkSchemas[i + 1] || []).concat(nextSchemas);
+			});
 
-			return rules;
+			if (checkSchemas[path.length]) {
+				checkSchemas[path.length].forEach(function(sc) {
+					for (var k in sc) {
+						schema[k] = sc[k];
+					}
+				});
+			}
+			return schema;
 		};
 
 		self.getNodeType = function(node) {
@@ -163,7 +256,7 @@
 				type = 'null';
 			}
 			return type;
-		}
+		};
 
 		// exec func on every part of the object, continue looping if the item is an object or array
 		self.loopJSON = function(node, key, path, func) {
@@ -182,22 +275,22 @@
 			}
 		};
 
-		self.initTempRow = function(parentRowstate, key){
+		self.initTempRow = function(parentRowstate, key) {
 			console.log('init temp', parentRowstate);
 			var newPath = parentRowstate.path.concat(key),
 				joinpath = newPath.join('/'),
-				rules = self.getRulesForPath(newPath, undefined);
+				schema = self.getSchemaForPath(newPath);
 			var rowstate = {
-					node: parentRowstate.node[parentRowState.key],
-					key: key,
-					path: newPath,
-					joinpath: joinpath,
-					parent: parentRowstate.joinpath,
-					type: rules.type || 'string',
-					rules: rules,
-					changed: true,
-					expanded: 0
-				};
+				node: parentRowstate.node[parentRowState.key],
+				key: key,
+				path: newPath,
+				joinpath: joinpath,
+				parent: parentRowstate.joinpath,
+				type: schema.type || 'string',
+				schema: schema,
+				changed: true,
+				expanded: 0
+			};
 			return rowstate;
 		};
 
@@ -223,8 +316,8 @@
 				hasContent = false;
 
 
-			if (rowstate.rules.type) {
-				editType = rowstate.rules.type;
+			if (rowstate.schema.type) {
+				editType = rowstate.schema.type;
 			}
 
 			var key = DOM().new('div').class('jsone-help-key').attr({
@@ -233,57 +326,67 @@
 
 			var val = DOM().new('div').class('jsone-help-value').appendTo(secinto);
 
-			if(self.__config.editable.indexOf(editType) > -1){
+			if (self.__config.editable.indexOf(editType) > -1) {
 				var edit = {
 					node: 'textarea',
 					attr: {
-						placeholder: rowstate.rules.placeholder || ''
+						placeholder: rowstate.schema.placeholder || ''
 					},
-					
+
 				};
-				if(editType === 'number' || editType === 'date'){
+				if (editType === 'number' || editType === 'date') {
 					edit.node = 'input';
 					edit.attr.type = editType;
 					edit.attr.value = rowstate.node[rowstate.key];
 				} else {
-					edit.text = rowstate.node[rowstate.key] || ''
+					edit.text = rowstate.node[rowstate.key] || '';
 				}
 				helpMeta.editable();
 				edit.dom = DOM().new(edit.node).class('jsone-input').attr(edit.attr).appendTo(val).on('input change', function(e) {
-					helpMeta.inputChangeEvent(e, rowstate.joinpath)
+					helpMeta.inputChangeEvent(e, rowstate.joinpath);
 				});
-				if(edit.text){
+				if (edit.text) {
 					edit.dom.text(edit.text);
 				}
 				hasContent = true;
 			}
 
-			if (rowstate.rules.description) {
-				DOM().new('div').class('jsone-help-description').html(rowstate.rules.description).appendTo(val);
+			if (rowstate.schema.description) {
+				DOM().new('div').class('jsone-help-description').html(rowstate.schema.description).appendTo(val);
 				hasContent = true;
 			}
 
-			if(!hasContent){
-				secinto.css({display: 'block'}).html('');
+			if (!hasContent) {
+				secinto.css({
+					display: 'block'
+				}).html('');
 			}
 
 			if (editType === 'object' && context == 'main') {
 				// fixes null or converts to proper object type for editing
-				if(rowstate.type !== 'object'){
+				if (rowstate.type !== 'object') {
 					rowstate.node[rowstate.key] = {};
-					self.emit('autofix', {path: rowstate.path, reason: 'type', typeFrom: rowstate.type, typeTo: editType, object:self.__json});
+					self.emit('autofix', {
+						path: rowstate.path,
+						reason: 'type',
+						typeFrom: rowstate.type,
+						typeTo: editType,
+						object: self.__json
+					});
 				}
-				var useKeys = rowstate.rules.properties || [];
-				Object.keys(rowstate.node[rowstate.key]).forEach(function(k){
-					if(useKeys.indexOf(k) < 0){ useKeys.push(k); }
+				var useKeys = [];
+				Object.keys(rowstate.node[rowstate.key]).forEach(function(k) {
+					if (useKeys.indexOf(k) < 0) {
+						useKeys.push(k);
+					}
 				});
-				useKeys.forEach(function(k){
+				useKeys.forEach(function(k) {
 					var newRowState = self.__state.rows[self.__state.rowsref[rowstate.path.concat(k).join('/')]] || self.initTempRow(rowstate, k);
 					self.renderHelpSegment(newRowState, into, helpMeta, 'sub');
-				})
+				});
 			}
 
-		}
+		};
 
 		self.renderHelpPath = function(rowstate) {
 			self.__json_help.html('');
@@ -313,7 +416,7 @@
 				checkForChanges: function() {
 					helpMeta.__is_changed = false;
 					for (var joinpath in helpMeta.__changes) {
-						var checkrowstate = self.__state.rows[self.__state.rowsref[joinpath]]
+						var checkrowstate = self.__state.rows[self.__state.rowsref[joinpath]];
 						if (checkrowstate) {
 							if (checkrowstate.node[checkrowstate.key] !== helpMeta.__changes[joinpath]) {
 								helpMeta.__is_changed = true;
@@ -324,22 +427,22 @@
 							}
 						}
 					}
-					if(helpMeta.__is_changed){
-						self.emit('change', helpMeta.__changes)
+					if (helpMeta.__is_changed) {
+						self.emit('change', helpMeta.__changes);
 					}
 					saveButton.attr({
 						disabled: !helpMeta.__is_changed
-					})
-;				},
+					});
+				},
 				save: function() {
 					if (helpMeta.__is_changed) {
 						for (var joinpath in helpMeta.__changes) {
-							var checkrowstate = self.__state.rows[self.__state.rowsref[joinpath]]
+							var checkrowstate = self.__state.rows[self.__state.rowsref[joinpath]];
 							if (checkrowstate) {
 								checkrowstate.node[checkrowstate.key] = helpMeta.__changes[joinpath];
 							}
 						}
-						self.emit('save', self.__json)
+						self.emit('save', self.__json);
 						self.renderState();
 					}
 					helpMeta.checkForChanges();
@@ -357,9 +460,9 @@
 			});
 
 			var saveButtonHolder = DOM().new('div').class('jsone-help-section').appendTo(into)
-			.append(DOM().new('div').class('jsone-help-key'))
-			.append(DOM().new('div').class('jsone-help-value').append(saveButton))
-			.appendTo(into);
+				.append(DOM().new('div').class('jsone-help-key'))
+				.append(DOM().new('div').class('jsone-help-value').append(saveButton))
+				.appendTo(into);
 
 		};
 
@@ -388,17 +491,17 @@
 					rowstate.row.html('')
 						.append(
 							DOM().new('span').class('jsone-row-text').html('<span class="jsone-node-key">' + rowstate.path[rowstate.path.length - 1] + '</span>' + self.getNodeDescription(rowstate.node[rowstate.key], rowstate.type))
-						)
+					)
 						.css(css)
 						.attr({
 							'data-children': (rowstate.type !== 'object' && rowstate.type !== 'array') ? '0' : '1'
-						})
+						});
 					rowstate.changed = false;
 				}
 				if (append) {
 					rowstate.row.appendTo(self.__json_rows)
 						.on('click', function(e) {
-							rowstate.expanded = rowstate.expanded || (rowstate.type !== 'object' && rowstate.type !== 'array') ? 0 : 1
+							rowstate.expanded = rowstate.expanded || (rowstate.type !== 'object' && rowstate.type !== 'array') ? 0 : 1;
 							self.__state.help = rowstate.joinpath;
 							self.renderState();
 						});
@@ -419,70 +522,72 @@
 					}
 				}
 
-				if(rowstate.expanded){
+				if (rowstate.expanded) {
 					self.__state.conf.expanded[rowstate.joinpath] = true;
 				}
 
 				if (self.__state.help === rowstate.joinpath) {
 					rowstate.row.attr({
 						'data-active': '1'
-					})
+					});
 					self.renderHelpPath(rowstate);
 				}
 			});
 
 			self.saveStateConfig();
-		}
+		};
 
-		self.saveStateConfig = function(){
+		self.saveStateConfig = function() {
 			clearTimeout(self.saveConfigTimer);
-			self.saveConfigTimer = setTimeout(function(){
+			self.saveConfigTimer = setTimeout(function() {
 				window.localStorage.setItem('jsone_state_config', JSON.stringify(self.__state.conf));
 			}, 100);
-		}
-		self.getStateConfig = function(key){
+		};
+		self.getStateConfig = function(key) {
 			var config = window.localStorage.getItem('jsone_state_config');
-			if(config){
-				try{
+			if (config) {
+				try {
 					config = JSON.parse(config);
-				} catch (e){
+				} catch ( e ) {
 					config = {};
 				}
 			} else {
 				config = {};
 			}
-			if(!config.expanded){
-				config.expanded = {}
+			if (!config.expanded) {
+				config.expanded = {};
 			}
-			config.__jsone_saveKey === key ? self.__state.conf = config : self.__state.conf = config = {};
+			config.__jsone_saveKey === key ? self.__state.conf = config : self.__state.conf = config = {
+				expanded: {}
+			};
 			return;
-		}
+		};
 
 		self.__node.elements[0].classList.add('jsone');
 		self.__json_rows = DOM().new('div').class('jsone-rows').appendTo(self.__node);
 		self.__json_help = DOM().new('div').class('jsone-help').appendTo(self.__node);
 
 		self.__listeners = {};
-		self.emit = function(event, value){
+		self.emit = function(event, value) {
 			// imit to the general listener "event" and the specified event
-			if(self.__listeners.event){
+			if (self.__listeners.event) {
 				self.__listeners.event(event, value);
 			}
-			if(self.__listeners[event]){
+			if (self.__listeners[event]) {
 				self.__listeners[event](event, value);
 			}
-		}
+		};
 
-		self.on = function(event, func){
-			if(typeof func === 'function'){
+		self.on = function(event, func) {
+			if (typeof func === 'function') {
 				self.__listeners[event] = func;
 			}
-		}
+		};
 
-		setTimeout(function(){
+		setTimeout(function() {
 			self.schema(self.__config.schema);
 			self.emit('init', true);
-		},0)
+		}, 0);
 
 		__mdd.prototype.stylesheet({
 			'.jsone': {
@@ -742,8 +847,8 @@
 				if (config.json || config.url.substr(-5) === '.json') {
 					try {
 						ret = JSON.parse(request.responseText);
-					} catch (e) {
-						err = 'could not parse json from url: '+config.url
+					} catch ( e ) {
+						err = 'could not parse json from url: ' + config.url;
 						ret = false;
 					}
 				}

@@ -1,38 +1,54 @@
 {
-  "/": {
-    "description": "Select a row to edit"
-  },
-  "/config": {
-    "key*": {
+  "$schema": "http://json-schema.org/schema#",
+  "description": "The demo schema for jsone",
+  "instruction": "Select a row to edit",
+  "definitions": {
+    "name": {
+      "placeholder": "enter name",
+      "description": "keep the names short please"
+    },
+    "description": {
       "type": "string",
-      "description": "enter a value for this key",
-      "rules": "must be a string between 1 and 20 chars",
-      "max": "20",
-      "min": "1"
-    }
-  },
-  "name": {
-    "placeholder": "enter name",
-    "description": "keep the names short please"
-  },
-  "description": {
-    "type": "string",
-    "description": "enter a description",
-    "placeholder": "enter a description",
-    "rules": "nah"
-  },
-  "date": {
-    "type": "date",
-    "description": "all \"date\" keys are a date everywhere",
-    "rules": "must be a valid date"
-  },
-  "items": {
-    "type": "array",
-    "description": "the sub-elements of this node",
-    "children": {
+      "description": "a description",
+      "instruction": "enter a description",
+      "placeholder": "enter a description"
+    },
+    "date": {
+      "type": "string",
+      "input": "date",
+      "description": "all \"date\" keys are a date everywhere"
+    },
+    "color": { "$ref": "/demoSchemaAddons.json#/definitions/color" },
+    "element": {
       "type": "object",
-      "properties": ["name", "description", "date"],
-      "required": ["name"]
+      "properties": { "$ref": "#/properties" }
+    },
+    "items": {
+      "type": "array",
+      "description": "the sub-elements of this node",
+      "items": { "$ref": "#/definitions/element" }
     }
+  },
+
+
+  "type": "object",
+  "properties": {
+      "name": { "$ref": "#/definitions/name" },
+      "description": { "$ref": "#/definitions/description" },
+      "date": { "$ref": "#/definitions/date" },
+      "config": {
+       "type": "object",
+       "properties": {
+        "key1": {
+          "type": "string",
+          "description": "sup yo"
+        }
+       }
+      }
+  },
+  "patternProperties": {
+      "items*": {
+        "$ref": "#/definitions/items"
+      }
   }
 }
