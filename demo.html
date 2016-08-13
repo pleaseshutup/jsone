@@ -35,13 +35,13 @@
 		<br><br>
 		<div>Event Logs</div>
 		<div id="jsone-logs"></div>
-		<script src="jsone.js"></script>
+		<script src="/jsone.js"></script>
 
 		<script>
 			var demo = new jsone({
 					node: document.getElementById('jsone'),
-					json: 'demoJSON.json',
-					schema: 'demoSchema.json'
+					json: '/demoJSON.json',
+					schema: '/demoSchema.json'
 				});
 
 			demo.on('event', function(type, value){

@@ -41,16 +41,43 @@
 
 			if (typeofjson === 'object') {
 				self.__json = json;
-				self.__jsonSaveKey = 'customObject';
+				if(!self.__jsonSaveKey){
+					self.__jsonSaveKey = 'customObject';
+				}
 				self.initJSON();
 			} else if (typeofjson === 'string') {
-				__mdd.prototype.http(json, function(err, json) {
+				self.__jsonSaveKey = json;
+				self.fetch(json, function(err, json) {
 					if (!json) {
 						self.emit('error', 'request error ' + err);
 					}
-					self.__jsonSaveKey = 'json';
 					self.json(json);
 				});
+			}
+		};
+
+		self.getNodeType = function(node) {
+			var type = Array.isArray(node) ? 'array' : typeof node;
+			if (type === 'object' && node === null) {
+				type = 'null';
+			}
+			return type;
+		};
+
+		// exec func on every part of the object, continue looping if the item is an object or array
+		self.loopJSON = function(node, key, path, func) {
+			if (path.length) {
+				var type = self.getNodeType(node[key]);
+				func(node, key, path, type);
+				if (type === 'object' || type === 'array') {
+					for (var k in node[key]) {
+						self.loopJSON(node[key], k, path.concat(k), func);
+					}
+				}
+			} else {
+				for (var k in node) {
+					self.loopJSON(node, k, path.concat(k), func);
+				}
 			}
 		};
 
@@ -59,8 +86,17 @@
 
 			self.getStateConfig(self.__jsonSaveKey);
 			self.__state.help = self.__state.conf.help || '';
+			!Object.keys(self.__state.conf.expanded).length ? self.__state.conf.expanded[self.__jsonSaveKey] = true : null;
 
-			self.loopJSON(self.__json, undefined, [], function(node, key, path, type) {
+			// we're passing an invented object to give the root item the appearance of the loaded file url/string
+			var fauxschema = {
+				"properties": {}
+			};
+			fauxschema.properties[self.__jsonSaveKey] = self.__schema;
+			self.__schema = fauxschema;
+			var fauxjson = {};
+			fauxjson[self.__jsonSaveKey] = self.__json;
+			self.loopJSON(fauxjson, undefined, [], function(node, key, path, type) {
 				// we use node and key to pass by reference
 				var joinpath = path.join('/');
 
@@ -118,7 +154,7 @@
 									path = path.substr(1);
 								}
 								var useObject = self.__refs[url] || self.__schema;
-								node[k] = self.getFromPath(useObject, path.split('/'));
+								node[k] = path ? self.getFromPath(useObject, path.split('/')) : useObject;
 							} else {
 								setRefs(node[k]);
 							}
@@ -146,7 +182,7 @@
 				if (self.__refs[url]) {
 					setTimeout(complete, 0); // timing i guess
 				} else {
-					__mdd.prototype.http(url, function(err, schema) {
+					self.fetch(url, function(err, schema) {
 						if (!schema) {
 							self.emit('error', 'ref schema request error' + err);
 							error = new Error('could not get or parse reference schema ' + url);
@@ -190,7 +226,7 @@
 				self.__schema = schema;
 				self.initSchema(self.__schema);
 			} else {
-				__mdd.prototype.http(schema, function(err, schema) {
+				self.fetch(schema, function(err, schema) {
 					if (!schema) {
 						self.emit('error', 'request error' + err);
 					}
@@ -243,36 +279,13 @@
 			if (checkSchemas[path.length]) {
 				checkSchemas[path.length].forEach(function(sc) {
 					for (var k in sc) {
-						schema[k] = sc[k];
+						if(typeof schema[k] === 'undefined'){
+							schema[k] = sc[k];
+						}
 					}
 				});
 			}
 			return schema;
-		};
-
-		self.getNodeType = function(node) {
-			var type = Array.isArray(node) ? 'array' : typeof node;
-			if (type === 'object' && node === null) {
-				type = 'null';
-			}
-			return type;
-		};
-
-		// exec func on every part of the object, continue looping if the item is an object or array
-		self.loopJSON = function(node, key, path, func) {
-			if (path.length) {
-				var type = self.getNodeType(node[key]);
-				func(node, key, path, type);
-				if (type === 'object' || type === 'array') {
-					for (var k in node[key]) {
-						self.loopJSON(node[key], k, path.concat(k), func);
-					}
-				}
-			} else {
-				for (var k in node) {
-					self.loopJSON(node, k, path.concat(k), func);
-				}
-			}
 		};
 
 		self.initTempRow = function(parentRowstate, key) {
@@ -390,7 +403,7 @@
 
 		self.renderHelpPath = function(rowstate) {
 			self.__json_help.html('');
-			DOM().new('div').class('jsone-help-path').html('Path: ' + rowstate.path.join('<span class="jsone-delimiter">/</span>')).appendTo(self.__json_help);
+			DOM().new('div').class('jsone-help-path').html('Path: ' + rowstate.path.slice(1).join('<span class="jsone-delimiter">/</span>')).appendTo(self.__json_help);
 
 			var into = DOM().new('form').class('jsone-help-items').appendTo(self.__json_help).on('submit', function(e) {
 				e.preventDefault();
@@ -490,8 +503,11 @@
 				if (rowstate.changed) {
 					rowstate.row.html('')
 						.append(
+							DOM().new('span').class('jsone-row-toggle')
+						)
+						.append(
 							DOM().new('span').class('jsone-row-text').html('<span class="jsone-node-key">' + rowstate.path[rowstate.path.length - 1] + '</span>' + self.getNodeDescription(rowstate.node[rowstate.key], rowstate.type))
-					)
+						)
 						.css(css)
 						.attr({
 							'data-children': (rowstate.type !== 'object' && rowstate.type !== 'array') ? '0' : '1'
@@ -501,8 +517,12 @@
 				if (append) {
 					rowstate.row.appendTo(self.__json_rows)
 						.on('click', function(e) {
-							rowstate.expanded = rowstate.expanded || (rowstate.type !== 'object' && rowstate.type !== 'array') ? 0 : 1;
-							self.__state.help = rowstate.joinpath;
+							if(e.target.className === 'jsone-row-toggle' || e.target.className === 'jsone-node-key'){
+								rowstate.expanded = rowstate.expanded || (rowstate.type !== 'object' && rowstate.type !== 'array') ? 0 : 1;
+							}
+							if(e.target.className !== 'jsone-row-toggle'){
+								self.__state.help = rowstate.joinpath;
+							}
 							self.renderState();
 						});
 				}
@@ -563,6 +583,16 @@
 			return;
 		};
 
+		// wrap fetches so we can use a url replace. We do this for testing so we can map domains to localhost etc
+		self.fetch = function(url, callback){
+			if(self.__config.url_replace){
+				Object.keys(self.__config.url_replace).forEach(function(from){
+					url = url.replace(from, self.__config.url_replace[from]);
+				});
+			}
+			__mdd.prototype.http(url, callback);
+		}
+
 		self.__node.elements[0].classList.add('jsone');
 		self.__json_rows = DOM().new('div').class('jsone-rows').appendTo(self.__node);
 		self.__json_help = DOM().new('div').class('jsone-help').appendTo(self.__node);
@@ -612,15 +642,15 @@
 				display: 'inline-block',
 				padding: '4px 0'
 			},
-			'.jsone-row:before': {
+			'.jsone-row-toggle:before': {
 				content: '""',
 				display: 'inline-block',
 				width: '16px'
 			},
-			'.jsone-row[data-children="1"]:before': {
+			'.jsone-row[data-children="1"] .jsone-row-toggle:before': {
 				content: '"+"'
 			},
-			'.jsone-row[data-expanded="1"]:before': {
+			'.jsone-row[data-expanded="1"] .jsone-row-toggle:before': {
 				content: '"–"'
 			},
 			'.jsone-row[data-active="1"]': {
