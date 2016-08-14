@@ -41,7 +41,8 @@
 			var demo = new jsone({
 					node: document.getElementById('jsone'),
 					json: '/demoJSON.json',
-					schema: '/demoSchema.json'
+					schema: '/demoSchema.json',
+					hashNavigation: true
 				});
 
 			demo.on('event', function(type, value){
