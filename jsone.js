@@ -344,10 +344,10 @@
 		//renders each individual key ui segment
 		self.renderHelpSegment = function(rowstate, into, helpMeta, context) {
 			var secinto = DOM().new('div').class('jsone-help-section').appendTo(into),
-				hasContent = false,
 				key = secinto,
 				val = secinto;
 
+			console.log(rowstate);
 			if(context !== 'main'){
 				secinto.class('jsone-help-row');
 				key = DOM().new('div').class('jsone-help-key').attr({
@@ -385,19 +385,12 @@
 				if (edit.text) {
 					edit.dom.text(edit.text);
 				}
-				hasContent = true;
 			}
 
 			if (rowstate.schema.description) {
 				DOM().new('div').class('jsone-help-description').html(rowstate.schema.description).appendTo(val);
-				hasContent = true;
 			}
 
-			if (!hasContent) {
-				secinto.css({
-					display: 'block'
-				}).html('');
-			}
 
 			if ( (rowstate.type === 'object' || rowstate.type === 'array') && context == 'main') {
 				// fixes null or converts to proper object type for editing
