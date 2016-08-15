@@ -93,7 +93,14 @@
 			var rowstate = self.__state.rows[self.__state.rowsref[joinpath]];
 			if(rowstate){
 				if(rowstate.node[rowstate.key] != el.value){
-					rowstate.node[rowstate.key] = el.value; // TODO validate/set types should go here
+					if(rowstate.type === 'number'){
+						rowstate.node[rowstate.key] = el.value && el.value != '0' ? el.value * 1 : '';
+					} else if(rowstate.type === 'boolean'){
+						rowstate.node[rowstate.key] = el.checked;
+					} else {
+						rowstate.node[rowstate.key] = el.value || ''
+					}
+					
 					rowstate.changed = true;
 					self.emit('change', joinpath);
 					self.renderState({rowsOnly: true});
