@@ -20,7 +20,7 @@
 		}
 
 		// the node we write into. Take provided node, query selector, id=jsone or just the body
-		self.__node = DOM(config.node || document.querySelector(config.node) || document.getElementById('jsone') || document.body);
+		self.__node = DOM(config.node || document.querySelector(config.node) || document.getElementById('jsone') || document.body).class('jsone');
 
 		self.__state = {
 			rows: [],
@@ -168,14 +168,20 @@
 		self.initJSON = function() {
 
 			self.getStateConfig(self.__jsonSaveKey);
+
 			!Object.keys(self.__state.conf.expanded).length ? self.__state.conf.expanded[self.__jsonSaveKey] = true : null;
 
 			// we're passing an invented object to give the root item the appearance of the loaded file url/string
 
 			self.__jsonSaveKeyNice = self.__jsonSaveKey.split('/').pop();
 
-			self.__state.help = self.__state.conf.help || '';
+			self.__state.help = self.__state.conf.help || self.__jsonSaveKeyNice;
 			self.__state.editMode = self.__state.conf.editMode || 'form';
+
+			if(self.__state.conf.menu !== false){
+				self.__node.attr({'data-menu': '1'})
+			}
+
 			if(window.location.hash.substr(1)){
 				self.__state.help = self.__jsonSaveKeyNice+'/'+window.location.hash.substr(1);
 			}
@@ -400,15 +406,14 @@
 		};
 
 		// tries to provide some helpful extra information on the current node row like the name or description or value of the node
-		self.getNodeDescription = function(node, type) {
+		self.getNodeDescription = function(rowstate) {
 			var str = '';
-			if (type === 'object') {
-				str = node.name || node.title || node.label || node.description;
+			if (rowstate.type === 'object') {
+				str = rowstate.node[rowstate.key].name || rowstate.node[rowstate.key].title || rowstate.node[rowstate.key].label || rowstate.node[rowstate.key].description;
 				return str ? '<span class="jsone-node-helper">' + str + '</span>' : '';
-			} else if (type === 'number' || type === 'string') {
-				str = node;
-				return str ? '<span class="jsone-node-colon">:</span><span class="jsone-node-value">' + str + '</span>' : '';
-			} else if (type === 'null') {
+			} else if (rowstate.type === 'number' || rowstate.type === 'string') {
+				return '<span class="jsone-node-colon">:</span><span class="jsone-node-value">' + (rowstate.node[rowstate.key] || '<span class="jsone-node-empty"></span>') + '</span>';
+			} else if (rowstate.type === 'null') {
 				return '<span class="jsone-node-helper">null</span>';
 			}
 			return str;
@@ -435,33 +440,40 @@
 				}
 			}
 
-			if (self.__config.editable.indexOf(rowstate.schema.format || rowstate.type) > -1) {
-				var edit = {
-					node: 'textarea',
-					attr: {
-						placeholder: rowstate.schema.placeholder || ''
-					},
-
-				};
-				if (rowstate.schema.format === 'number' || rowstate.schema.format === 'date' || rowstate.schema.format === 'date-time') {
-					edit.node = 'input';
-					edit.attr.type = rowstate.schema.format.replace(/\-/g, '');
-					edit.attr.value = rowstate.node[rowstate.key];
-				} else {
-					edit.text = rowstate.node[rowstate.key] || '';
+			if(rowstate.type === 'object' || rowstate.type === 'array'){
+				if(context !== 'main'){
+					DOM().new('span').text('»').class('jsone-help-key-clickable').on('click', function(e){
+						self.goToNode(rowstate, true);
+					}).appendTo(val);
 				}
-				edit.dom = DOM().new(edit.node).class('jsone-input').attr(edit.attr).appendTo(val).on('input change', function(e) {
-					self.inputChangeEvent(edit.dom.elements[0], rowstate.joinpath);
-				});
-				if (edit.text) {
-					edit.dom.text(edit.text || '').autosizeTextarea();
+			} else {
+				if (self.__config.editable.indexOf(rowstate.schema.format || rowstate.type) > -1) {
+					var edit = {
+						node: 'textarea',
+						attr: {
+							placeholder: rowstate.schema.placeholder || ''
+						},
+
+					};
+					if (rowstate.schema.format === 'number' || rowstate.schema.format === 'date' || rowstate.schema.format === 'date-time') {
+						edit.node = 'input';
+						edit.attr.type = rowstate.schema.format.replace(/\-/g, '');
+						edit.attr.value = rowstate.node[rowstate.key];
+					} else {
+						edit.text = rowstate.node[rowstate.key] || '';
+					}
+					edit.dom = DOM().new(edit.node).class('jsone-input').attr(edit.attr).appendTo(val).on('input change', function(e) {
+						self.inputChangeEvent(edit.dom.elements[0], rowstate.joinpath);
+					});
+					if (edit.text) {
+						edit.dom.text(edit.text || '').autosizeTextarea();
+					}
 				}
 			}
 
 			if (rowstate.schema.description) {
 				DOM().new('div').class('jsone-help-description').html(rowstate.schema.description).appendTo(val);
 			}
-
 
 			if ( (rowstate.type === 'object' || rowstate.type === 'array') && context == 'main') {
 				// fixes null or converts to proper object type for editing
@@ -494,8 +506,13 @@
 			self.__json_help.html('');
 
 			var top = DOM().new('div').appendTo(self.__json_help);
+			var titleMenu = DOM().new('span').class('jsone-ibb jsone-help-menu').appendTo(top).on('click', function(e){
+				self.__state.conf.menu = self.__state.conf.menu !== false ? false : true;
+				console.log("menu", self.__state.conf.menu);
+				self.__node.attr({'data-menu': self.__state.conf.menu !== false ? '1' : '0'})
+			});
 			var titlePath = DOM().new('span').class('jsone-ibb jsone-help-path').appendTo(top);
-			var titleOps = DOM().new('span').class('jsone-help-ops').appendTo(top);
+			var titleOps = DOM().new('span').class('jsone-ibb jsone-help-ops').appendTo(top);
 
 			rowstate.path.forEach(function(key, i){
 				DOM().new('span').class('jsone-ibb jsone-help-key-clickable').text(key).on('click', function(e){
@@ -538,6 +555,7 @@
 		self.renderState = function(conf) {
 			if(!conf){ conf = {}; }
 			//conf is the state settings we store in local storage and try to load on refresh
+
 			self.__state.conf = {
 				__jsone_saveKey: self.__jsonSaveKey,
 				expanded: {},
@@ -563,11 +581,12 @@
 							DOM().new('span').class('jsone-row-toggle')
 						)
 						.append(
-							DOM().new('span').class('jsone-row-text').html('<span class="jsone-node-key">' + rowstate.path[rowstate.path.length - 1] + '</span>' + self.getNodeDescription(rowstate.node[rowstate.key], rowstate.type))
+							DOM().new('span').class('jsone-row-text').html('<span class="jsone-node-key">' + rowstate.path[rowstate.path.length - 1] + '</span>' + self.getNodeDescription(rowstate))
 						)
 						.css(css)
 						.attr({
-							'data-children': (rowstate.type !== 'object' && rowstate.type !== 'array') ? '0' : '1'
+							'data-children': (rowstate.type !== 'object' && rowstate.type !== 'array') ? '0' : '1',
+							title: rowstate.key+' ('+rowstate.type+') '+(rowstate.schema.description || '')
 						});
 					rowstate.changed = false;
 				}
@@ -678,19 +697,32 @@
 
 		__mdd.prototype.stylesheet({
 			'.jsone': {
-				display: 'flex'
+				position: 'relative',
+				overflow: 'hidden',
+				width: '100%'
 			},
 			'.jsone-rows': {
+				position: 'absolute',
+				left: 0,
+				top: 0,
+				height: '100%',
 				'font-family': 'monospace, Courier New',
 				'font-size': '12px',
-				'z-index': 1,
-				'margin-right': '-1px',
-				width: '50%',
+				overflow: 'hidden',
+				'overflow-y': 'auto',
+				'white-space': 'nowrap',
+				width: '300px',
 			},
 			'.jsone-help': {
-				'z-index': 0,
+				background: '#fff',
 				border: '1px solid #eaeaea',
-				width: '50%',
+				'min-height': '400px',
+				transform: 'translate3d(0, 0, 0)',
+				transition: 'transform 0.15s ease-in-out'
+			},
+			'.jsone[data-menu="1"] .jsone-help': {
+				width: 'calc(100% - 300px)',
+				transform: 'translate3d(300px, 0, 0)'
 			},
 			'.jsone-ibb': {
 				display: 'inline-block',
@@ -720,8 +752,7 @@
 				content: '"–"'
 			},
 			'.jsone-row[data-active="1"]': {
-				'border': '1px solid #eaeaea',
-				'border-right': '1px solid #fff'
+				'background-color': '#f1f1f1',
 			},
 			'.jsone-node-helper': {
 				'padding-left': '4px',
@@ -737,12 +768,25 @@
 			'.jsone-node-value': {
 				color: '#666'
 			},
+			'.jsone-node-empty:before': {
+				content: '"-"',
+				color: '#ccc'
+			},
+			'.jsone-help-menu': {
+				padding: '8px 12px',
+			},
+			'.jsone-help-menu:before': {
+				content: '"»"'
+			},
+			'.jsone[data-menu="1"] .jsone-help-menu:before': {
+				content: '"«"'
+			},
 			'.jsone-help-path': {
 				padding: '12px',
 				'width': 'calc(100% - 100px)'
 			},
 			'.jsone-help-ops': {
-				'width': '100px'
+				'width': '62px'
 			},
 			'.jsone-help-items': {
 				padding: '0 12px 12px 12px'
@@ -788,7 +832,8 @@
 				margin: 0,
 				padding: '4px',
 				border: 0,
-				'border-radius': '3px',
+				'border-radius': '0',
+				'border-bottom': '1px solid #ccc',
 				background: '#fff',
 				resize: 'vertical',
 				'box-sizing': 'border-box'
