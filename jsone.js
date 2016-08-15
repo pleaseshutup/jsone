@@ -6,7 +6,7 @@
 
 		self.__config = config || {};
 		if (!Array.isArray(self.__config.editable)) {
-			self.__config.editable = ['string', 'number', 'date'];
+			self.__config.editable = ['string', 'number', 'date', 'boolean'];
 		}
 		if(self.__config.hashNavigation){
 			window.addEventListener('hashchange', function(e){
@@ -462,7 +462,12 @@
 						},
 
 					};
-					if (rowstate.schema.format === 'number' || rowstate.schema.format === 'date' || rowstate.schema.format === 'date-time') {
+					console.log(rowstate.key, rowstate.type, rowstate);
+					if(rowstate.type === 'boolean'){
+						edit.node = 'input';
+						edit.attr.type = 'checkbox';
+						edit.attr.checked = rowstate.node[rowstate.key]
+					} else if (rowstate.schema.format === 'number' || rowstate.schema.format === 'date' || rowstate.schema.format === 'date-time') {
 						edit.node = 'input';
 						edit.attr.type = rowstate.schema.format.replace(/\-/g, '');
 						edit.attr.value = rowstate.node[rowstate.key];
@@ -713,6 +718,7 @@
 				left: 0,
 				top: 0,
 				height: '100%',
+				'padding-top': '12px',
 				'font-family': 'monospace, Courier New',
 				'font-size': '12px',
 				overflow: 'hidden',
@@ -722,7 +728,6 @@
 			},
 			'.jsone-help': {
 				background: '#fff',
-				border: '1px solid #eaeaea',
 				'min-height': '400px',
 				transform: 'translate3d(0, 0, 0)',
 				transition: 'transform 0.15s ease-in-out'
@@ -737,7 +742,6 @@
 				'box-sizing': 'border-box',
 			},
 			'.jsone-row': {
-				border: '1px solid transparent',
 				cursor: 'pointer'
 			},
 			'.jsone-row:hover': {
@@ -799,7 +803,6 @@
 				padding: '0 12px 12px 12px'
 			},
 			'.jsone-help-key': {
-				'border-top': '1px solid #f1f1f1',
 				'text-align': 'right',
 				padding: '12px 4px 12px 0',
 				display: 'table-cell',
@@ -813,7 +816,6 @@
 			},
 			'.jsone-help-value': {
 				padding: '12px 0',
-				'border-top': '1px solid #f1f1f1',
 				display: 'table-cell',
 				'vertical-align': 'top',
 				width: '100%'
