@@ -4,11 +4,17 @@ Great for providing an easy guided way to edit and view JSON.
 
 ### Basic Usage
 ``` javascript
+
 var demo = new jsone({
     node: document.getElementById('jsone'), // target html element to place jsone
     json: 'demoJSON.json', // js object or url to jsone file
     schema: 'demoSchema.json' // js object or url to schema file
 });
+
+demo.on('change', function(path){
+    console.log('change to path', path);
+})
+
 ```
 
 ### Config Options
@@ -23,6 +29,13 @@ var demo = new jsone({
 ```
 
 ### Events
+| name | arguments | description |
+| --- | --- | --- |
+| error | error object | there is an error of any kind
+| init | null | jsone is initialized and is going to try to get the schema/json files
+| schemaready | null | the schema and all referenced schema's are loaded and ready
+| jsonready | null | the JSON is loaded and the schema is associated with it
+| change | pathstring | when a change is made this event emits the path as a string delimited by "/" to the changed node
 
 
 ### Schema Support
