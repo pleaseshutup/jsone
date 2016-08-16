@@ -8,11 +8,11 @@
 		if (!Array.isArray(self.__config.editable)) {
 			self.__config.editable = ['string', 'number', 'date', 'boolean'];
 		}
-		if(self.__config.hashNavigation){
-			window.addEventListener('hashchange', function(e){
+		if (self.__config.hashNavigation) {
+			window.addEventListener('hashchange', function(e) {
 				var hash = (window.location.hash || '').substr(1);
-				var rowstate = self.__state.rows[self.__state.rowsref[self.__jsonSaveKeyNice+'/'+hash]];
-				if(rowstate){
+				var rowstate = self.__state.rows[self.__state.rowsref[self.__jsonSaveKeyNice + '/' + hash]];
+				if (rowstate) {
 					self.goToNode(rowstate, true, true);
 				}
 			})
@@ -32,36 +32,40 @@
 
 		self.inputChangeEvent = function(el, joinpath) {
 			clearTimeout(self.__state.changes_timer);
-			self.__state.changes_timer = setTimeout(function(){ self.checkForChanges(el, joinpath); }, 100);
+			self.__state.changes_timer = setTimeout(function() {
+				self.checkForChanges(el, joinpath);
+			}, 100);
 		};
 
-		self.jsonChangeEvent = function(el, joinpath){
+		self.jsonChangeEvent = function(el, joinpath) {
 			clearTimeout(self.__state.changes_timer);
-			self.__state.changes_timer = setTimeout(function(){ self.checkForChangesJSON(el, joinpath) }, 100);
+			self.__state.changes_timer = setTimeout(function() {
+				self.checkForChangesJSON(el, joinpath)
+			}, 100);
 		};
 		self.checkForChangesJSON = function(el, joinpath) {
 			var json_object, ok = false;
-			try{
+			try {
 				json_object = JSON.parse(el.value);
 				ok = true;
 				el.style.outline = '';
-			} catch(e){
+			} catch (e) {
 				self.emit('jsonparse', joinpath);
 				el.style.outline = '2px solid red';
 			}
-			if(ok){
+			if (ok) {
 				var index = self.__state.rowsref[joinpath];
 				var rowstate = self.__state.rows[index];
-				if(rowstate){
-					if(JSON.stringify(rowstate.node[rowstate.key]) !== JSON.stringify(json_object)){
+				if (rowstate) {
+					if (JSON.stringify(rowstate.node[rowstate.key]) !== JSON.stringify(json_object)) {
 
-						if(typeof json_object === 'object'){
+						if (typeof json_object === 'object') {
 							// by reference hack i guess
-							for(var k in json_object){
+							for (var k in json_object) {
 								rowstate.node[rowstate.key][k] = json_object[k];
 							}
-							for(var k in rowstate.node[rowstate.key]){
-								if(typeof json_object[k] === 'undefined'){
+							for (var k in rowstate.node[rowstate.key]) {
+								if (typeof json_object[k] === 'undefined') {
 									delete rowstate.node[rowstate.key][k];
 								}
 							}
@@ -70,9 +74,10 @@
 						}
 
 						// mark sub-tree changed
-						var subrowstate = self.__state.rows[index], cancel = false;
-						while(subrowstate){
-							if(subrowstate.joinpath.indexOf(joinpath) === 0){
+						var subrowstate = self.__state.rows[index],
+							cancel = false;
+						while (subrowstate) {
+							if (subrowstate.joinpath.indexOf(joinpath) === 0) {
 								subrowstate.changed = true;
 								index++;
 								subrowstate = self.__state.rows[index];
@@ -80,9 +85,11 @@
 								subrowstate = false;
 							}
 						}
-						
+
 						self.emit('change', joinpath, json_object);
-						self.renderState({rowsOnly: true});
+						self.renderState({
+							rowsOnly: true
+						});
 					}
 				}
 			}
@@ -90,19 +97,21 @@
 
 		self.checkForChanges = function(el, joinpath) {
 			var rowstate = self.__state.rows[self.__state.rowsref[joinpath]];
-			if(rowstate){
-				if(rowstate.node[rowstate.key] != el.value){
-					if(rowstate.type === 'number'){
+			if (rowstate) {
+				if (rowstate.node[rowstate.key] != el.value) {
+					if (rowstate.type === 'number') {
 						rowstate.node[rowstate.key] = el.value && el.value != '0' ? el.value * 1 : '';
-					} else if(rowstate.type === 'boolean'){
+					} else if (rowstate.type === 'boolean') {
 						rowstate.node[rowstate.key] = el.checked;
 					} else {
 						rowstate.node[rowstate.key] = el.value || ''
 					}
-					
+
 					rowstate.changed = true;
 					self.emit('change', joinpath);
-					self.renderState({rowsOnly: true});
+					self.renderState({
+						rowsOnly: true
+					});
 				}
 			}
 		};
@@ -130,7 +139,7 @@
 
 			if (typeofjson === 'object') {
 				self.__json = json;
-				if(!self.__jsonSaveKey){
+				if (!self.__jsonSaveKey) {
 					self.__jsonSaveKey = 'customObject';
 				}
 				self.initJSON();
@@ -184,12 +193,14 @@
 			self.__state.help = self.__state.conf.help || self.jsonName;
 			self.__state.editMode = self.__state.conf.editMode || 'form';
 
-			if(self.__state.conf.menu !== false){
-				self.__node.attr({'data-menu': '1'})
+			if (self.__state.conf.menu !== false) {
+				self.__node.attr({
+					'data-menu': '1'
+				})
 			}
 
-			if(window.location.hash.substr(1)){
-				self.__state.help = self.jsonName+'/'+window.location.hash.substr(1);
+			if (window.location.hash.substr(1)) {
+				self.__state.help = self.jsonName + '/' + window.location.hash.substr(1);
 			}
 
 			var fauxschema = {
@@ -212,13 +223,14 @@
 
 			self.__state.rows = [];
 			self.__state.rowsref = {};
+			self.__json_rows.html(''); // clear it in case of re-init/render
 
 			self.loopJSON(fauxjson, undefined, [], function(node, key, path, type) {
 				// we use node and key to pass by reference
 				var joinpath = path.join('/');
 				var schema = self.getSchemaForPath(path);
 
-				if(schema.type && schema.type !== type){
+				if (schema.type && schema.type !== type) {
 					node[key] = self.typeCast(node[key], schema.type);
 					self.emit('autofix', {
 						path: path.concat(key),
@@ -371,7 +383,7 @@
 			path.forEach(function(key, i) {
 				var nextSchemas = [];
 
-				if(i > 0){
+				if (i > 0) {
 					var parentPath = path.slice(0, i);
 					if (self.__state.rows[self.__state.rowsref[parentPath.join('/')]].type === 'array') {
 						var itemSchema = self.getSchemaForPath(parentPath);
@@ -404,7 +416,7 @@
 			if (checkSchemas[path.length]) {
 				checkSchemas[path.length].forEach(function(sc) {
 					for (var k in sc) {
-						if(typeof schema[k] === 'undefined'){
+						if (typeof schema[k] === 'undefined') {
 							schema[k] = sc[k];
 						}
 					}
@@ -413,15 +425,15 @@
 			return schema;
 		};
 
-		self.typeCast = function(val, type){
-			if(typeof val !== type || val === null){
-				if(!Array.isArray(val) && type === 'array'){
+		self.typeCast = function(val, type) {
+			if (typeof val !== type || val === null) {
+				if (!Array.isArray(val) && type === 'array') {
 					val = [];
-				} else if (type == 'object'){
+				} else if (type == 'object') {
 					val = {};
-				} else if(type === 'boolean'){
+				} else if (type === 'boolean') {
 					val = val ? true : false;
-				} else if(type === 'number'){
+				} else if (type === 'number') {
 					val = 0
 				} else {
 					val = '';
@@ -431,16 +443,16 @@
 		};
 
 		self.addToJSON = function(parentRowstate, key) {
-			if(parentRowstate.schema.type === 'array'){
+			if (parentRowstate.schema.type === 'array') {
 				key = parentRowstate.node[parentRowstate.key].length || 0;
 			}
 			var newPath = parentRowstate.path.concat(key),
 				joinpath = newPath.join('/'),
 				schema = self.getSchemaForPath(newPath);
 
-			if(parentRowstate.type === 'object'){
+			if (parentRowstate.type === 'object') {
 				parentRowstate.node[parentRowstate.key][key] = self.typeCast('', schema.type);
-			} else if(parentRowstate.type === 'array'){
+			} else if (parentRowstate.type === 'array') {
 				parentRowstate.node[parentRowstate.key].push(self.typeCast('', schema.type));
 			}
 
@@ -469,25 +481,33 @@
 				key = secinto,
 				val = secinto;
 
-			if(context !== 'main'){
-				secinto.class('jsone-help-row');
+			if (context !== 'main') {
+				secinto.class('jsone-help-row').attr({
+					'data-path': rowstate.joinpath,
+					'data-parent-path': rowstate.parent,
+				});
+
 				key = DOM().new('div').class('jsone-help-key').attr({
 					title: rowstate.joinpath + ' (' + rowstate.type + ')'
 				}).html(rowstate.path[rowstate.path.length - 1] + '<span class="jsone-node-colon">:</span>').appendTo(secinto);
 
 				val = DOM().new('div').class('jsone-help-value').appendTo(secinto);
 
+				key.append(DOM().new('span').class('jsone-drag-indicator').on('mousedown touchstart', self.sortingEvents));
+
 			}
 
-			if(rowstate.type === 'object' || rowstate.type === 'array'){
-				if(context !== 'main'){
+			if (rowstate.type === 'object' || rowstate.type === 'array') {
+				if (context !== 'main') {
 
 					DOM().new('span').html(self.getNodeDescription(rowstate)).appendTo(val)
 
-					key.class('jsone-help-key jsone-help-key-clickable').on('click', function(e){
-						self.goToNode(rowstate, true);
+					key.class('jsone-help-key jsone-help-key-clickable').on('click', function(e) {
+						if(!self.__curMoveEvent){
+							self.goToNode(rowstate, true);
+						}
 					})
-					val.on('click', function(e){
+					val.on('click', function(e) {
 						self.goToNode(rowstate, true);
 					})
 
@@ -502,7 +522,7 @@
 						},
 
 					};
-					if(rowstate.type === 'boolean'){
+					if (rowstate.type === 'boolean') {
 						edit.node = 'input';
 						edit.attr.type = 'checkbox';
 						edit.attr.checked = rowstate.node[rowstate.key]
@@ -526,49 +546,63 @@
 				DOM().new('div').class('jsone-help-description').html(rowstate.schema.description).appendTo(val);
 			}
 
-			if ( (rowstate.type === 'object' || rowstate.type === 'array') && context == 'main') {
+			if ((rowstate.type === 'object' || rowstate.type === 'array') && context == 'main') {
 
-				var newInto = DOM().new('div').css({display: 'table'}).appendTo(into);
-				for(var k in rowstate.node[rowstate.key]){
+				var newInto = DOM().new('div').css({
+					display: 'table'
+				}).appendTo(into);
+				for (var k in rowstate.node[rowstate.key]) {
 					var newRowState = self.__state.rows[self.__state.rowsref[rowstate.path.concat(k).join('/')]];
 					self.renderHelpSegment(newRowState, newInto, 'sub');
 				};
 
-				if(rowstate.type === 'array'){
-					DOM().new('button').text('add row').class('jsone-input jsone-input-add').on('click', function(e){
-						self.addToJSON(rowstate, 'add')
-						self.renderState();
-					}).appendTo(into)
-				} else {
-					var datalist = DOM().new('datalist').attr({id: 'propertyList'});
-					if(rowstate.schema.properties){
-						Object.keys(rowstate.schema.properties).forEach(function(property){
-							if(typeof rowstate.node[rowstate.key][property] === 'undefined'){
-								var desc = '';
-								if(rowstate.schema.properties[property].description){
-									desc += ': '+rowstate.schema.properties[property].description
+				if (rowstate.schema.additionalProperties !== false) {
+					if (rowstate.type === 'array') {
+						DOM().new('button').text('add row').class('jsone-input jsone-input-add').on('click', function(e) {
+							self.addToJSON(rowstate, 'add')
+							self.renderState();
+						}).appendTo(into)
+					} else {
+						var datalist = DOM().new('datalist').attr({
+							id: 'propertyList'
+						});
+						if (rowstate.schema.properties) {
+							Object.keys(rowstate.schema.properties).forEach(function(property) {
+								if (typeof rowstate.node[rowstate.key][property] === 'undefined') {
+									var desc = '';
+									if (rowstate.schema.properties[property].description) {
+										desc += ': ' + rowstate.schema.properties[property].description
+									}
+									DOM().new('option').attr({
+										value: property
+									}).text(property + desc).appendTo(datalist);
 								}
-								DOM().new('option').attr({value: property}).text(property+desc).appendTo(datalist);
-							}
-						})
-					}
-					var form = DOM().new('form').on('submit', function(e) {
-						var addprop = form.find('input').elements[0].value || '';
-						if(addprop && typeof rowstate.node[rowstate.key][addprop] === 'undefined'){
-							self.addToJSON(rowstate, addprop);
+							})
 						}
-						self.renderState();
-						e.preventDefault();
-					}).append(
-						DOM().new('label').class('jsone-ibb').text('add property ')
-						.append(
-							DOM().new('input').class('jone-input').attr({type: 'text', list: 'propertyList'})
-						).append(datalist)
-					)
-					.append(DOM().new('span').text(' '))
-					.append(
-						DOM().new('input').class('jsone-input jsone-input-add').attr({type: 'submit', value: 'add property'})
-					).appendTo(into)
+						var form = DOM().new('form').on('submit', function(e) {
+								var addprop = form.find('input').elements[0].value || '';
+								if (addprop && typeof rowstate.node[rowstate.key][addprop] === 'undefined') {
+									self.addToJSON(rowstate, addprop);
+								}
+								self.renderState();
+								e.preventDefault();
+							}).append(
+								DOM().new('label').class('jsone-ibb').text('add property ')
+								.append(
+									DOM().new('input').class('jone-input').attr({
+										type: 'text',
+										list: 'propertyList'
+									})
+								).append(datalist)
+							)
+							.append(DOM().new('span').text(' '))
+							.append(
+								DOM().new('input').class('jsone-input jsone-input-add').attr({
+									type: 'submit',
+									value: 'add property'
+								})
+							).appendTo(into)
+					}
 				}
 
 			}
@@ -579,31 +613,35 @@
 			self.__json_help.html('');
 
 			var top = DOM().new('div').appendTo(self.__json_help);
-			var titleMenu = DOM().new('span').class('jsone-ibb jsone-help-menu').appendTo(top).on('click', function(e){
+			var titleMenu = DOM().new('span').class('jsone-ibb jsone-help-menu').appendTo(top).on('click', function(e) {
 				self.__state.conf.menu = self.__state.conf.menu !== false ? false : true;
 				console.log("menu", self.__state.conf.menu);
-				self.__node.attr({'data-menu': self.__state.conf.menu !== false ? '1' : '0'})
+				self.__node.attr({
+					'data-menu': self.__state.conf.menu !== false ? '1' : '0'
+				})
 			});
 			var titlePath = DOM().new('span').class('jsone-ibb jsone-help-path').appendTo(top);
 			var titleOps = DOM().new('span').class('jsone-ibb jsone-help-ops').appendTo(top);
 
-			rowstate.path.forEach(function(key, i){
-				DOM().new('span').class('jsone-ibb jsone-help-key-clickable').text(key).on('click', function(e){
+			rowstate.path.forEach(function(key, i) {
+				DOM().new('span').class('jsone-ibb jsone-help-key-clickable').text(key).on('click', function(e) {
 					self.goToNode(self.__state.rows[self.__state.rowsref[rowstate.parent]], true)
 				}).appendTo(titlePath);
-				if(i < rowstate.path.length - 1){
+				if (i < rowstate.path.length - 1) {
 					DOM().new('span').class('jsone-delimiter').text('/').appendTo(titlePath);
 				}
 			})
 
-			DOM().new('button').attr({href: '#'}).class('jsone-input').text(self.__state.editMode === 'json' ? 'form' : 'json').appendTo(titleOps).on('click', function(e){
+			DOM().new('button').attr({
+				href: '#'
+			}).class('jsone-input').text(self.__state.editMode === 'json' ? 'form' : 'json').appendTo(titleOps).on('click', function(e) {
 				self.__state.editMode === 'json' ? self.__state.editMode = 'form' : self.__state.editMode = 'json';
 				self.renderState();
 			})
 
 			var into = DOM().new('div').class('jsone-help-items').appendTo(self.__json_help);
 
-			if( self.__state.editMode === 'json' ){
+			if (self.__state.editMode === 'json') {
 				var jsonedit = DOM().new('textarea').class('jsone-input jsone-edit-json').appendTo(into).text(JSON.stringify(rowstate.node[rowstate.key], undefined, 2) || '').autosizeTextarea().on('input change', function(e) {
 					self.jsonChangeEvent(jsonedit.elements[0], rowstate.joinpath);
 				});
@@ -613,20 +651,25 @@
 
 		};
 
-		self.goToNode = function(rowstate, renderState, noHashChange){
+		self.goToNode = function(rowstate, renderState, noHashChange) {
 			self.__state.help = rowstate.joinpath;
-			if(!noHashChange && self.__config.hashNavigation){
+			if (!noHashChange && self.__config.hashNavigation) {
 				document.location.hash = rowstate.path.slice(1).join('/');
 			}
-			if(renderState){
+			if (renderState) {
 				self.renderState();
 			}
 		};
 
 		self.renderState = function(conf) {
-			if(!conf){ conf = {}; }
+			if (!conf) {
+				conf = {};
+			}
 			//conf is the state settings we store in local storage and try to load on refresh
 
+			if (self.__json_rows.html()) {
+				console.log('has data', self.__json_rows.html());
+			}
 			self.__state.conf = {
 				__jsone_saveKey: self.__jsonSaveKey,
 				expanded: {},
@@ -643,6 +686,7 @@
 					append = !rowstate.row;
 
 				rowstate.row = (rowstate.row || DOM().new('div').class('jsone-row')).attr({
+					'data-children': (rowstate.type !== 'object' && rowstate.type !== 'array') ? '0' : '1',
 					'data-expanded': rowstate.expanded,
 					'data-active': '0'
 				});
@@ -656,18 +700,17 @@
 						)
 						.css(css)
 						.attr({
-							'data-children': (rowstate.type !== 'object' && rowstate.type !== 'array') ? '0' : '1',
-							title: rowstate.key+' ('+rowstate.type+') '+(rowstate.schema.description || '')
+							title: rowstate.key + ' (' + rowstate.type + ') ' + (rowstate.schema.description || '')
 						});
 					rowstate.changed = false;
 				}
 				if (append) {
 					rowstate.row.appendTo(self.__json_rows)
 						.on('click', function(e) {
-							if(e.target.className === 'jsone-row-toggle' || e.target.className === 'jsone-node-key'){
+							if (e.target.className === 'jsone-row-toggle' || e.target.className === 'jsone-node-key') {
 								rowstate.expanded = rowstate.expanded || (rowstate.type !== 'object' && rowstate.type !== 'array') ? 0 : 1;
 							}
-							if(e.target.className !== 'jsone-row-toggle'){
+							if (e.target.className !== 'jsone-row-toggle') {
 								self.goToNode(rowstate, false);
 							}
 							self.renderState();
@@ -715,7 +758,7 @@
 			if (config) {
 				try {
 					config = JSON.parse(config);
-				} catch ( e ) {
+				} catch (e) {
 					config = {};
 				}
 			} else {
@@ -731,9 +774,9 @@
 		};
 
 		// wrap fetches so we can use a url replace. We do this for testing so we can map domains to localhost etc
-		self.fetch = function(url, callback){
-			if(self.__config.url_replace){
-				Object.keys(self.__config.url_replace).forEach(function(from){
+		self.fetch = function(url, callback) {
+			if (self.__config.url_replace) {
+				Object.keys(self.__config.url_replace).forEach(function(from) {
 					url = url.replace(from, self.__config.url_replace[from]);
 				});
 			}
@@ -743,6 +786,59 @@
 		self.__node.elements[0].classList.add('jsone');
 		self.__json_rows = DOM().new('div').class('jsone-rows').appendTo(self.__node);
 		self.__json_help = DOM().new('div').class('jsone-help').appendTo(self.__node);
+
+
+		self.sortingEvents = function(e) {
+			e.preventDefault();
+			var target = e.target,
+				path = e.target.getAttribute('data-path'), i = 0;
+			while (!path && i < 5) {
+				target = target.parentNode;
+				if(target){
+					path = target.getAttribute('data-path');
+				}
+				i++;
+			}
+			if (path) {
+				if (e.type === 'mousedown' || e.type === 'touchstart') {
+					self.__curMoveEvent = {
+						path: path,
+						getState: function(){
+							self.__curMoveEvent.els = self.__json_help.find('.jsone-help-row').elements
+							self.__curMoveEvent.currentOrder = self.__curMoveEvent.els.map(function(el) {
+								return el.getAttribute('data-path');
+							})
+							self.__curMoveEvent.index = self.__curMoveEvent.currentOrder.indexOf(path);
+						}
+					};
+					self.__curMoveEvent.getState();
+					window.addEventListener('mousemove', self.sortingEvents)
+					window.addEventListener('mouseup', self.sortingEvents)
+				} else if (e.type === 'mouseup' || e.type === 'touchend') {
+					setTimeout(function(){
+						self.__curMoveEvent = false;
+					}, 100);
+					window.removeEventListener('mousemove', self.sortingEvents)
+					window.removeEventListener('touchend', self.sortingEvents)
+				} else if (e.type === 'mousemove' || e.type === 'touchmove') {
+					if (path !== self.__curMoveEvent.path) {
+						var toIndex = self.__curMoveEvent.currentOrder.indexOf(path);
+						var fromRow = self.__curMoveEvent.els[self.__curMoveEvent.index],
+							toRow = self.__curMoveEvent.els[toIndex];
+						if(fromRow && toRow){
+							if(self.__curMoveEvent.direction === 'down'){
+								toRow.parentNode.insertBefore(toRow, fromRow)
+							} else {
+								toRow.parentNode.insertBefore(fromRow, toRow)
+							}
+						}
+					}
+					self.__curMoveEvent.y = e.touches ? e.touches[0].pageY : e.pageY;
+					self.__curMoveEvent.direction = self.__curMoveEvent.y < self.__curMoveEvent.lastY ? 'up' : 'down';
+					self.__curMoveEvent.lastY = self.__curMoveEvent.y;
+				}
+			}
+		}
 
 		self.__listeners = {};
 		self.emit = function(event, value) {
@@ -872,8 +968,9 @@
 				padding: '0 12px 12px 12px'
 			},
 			'.jsone-help-key': {
+				position: 'relative',
 				'text-align': 'right',
-				padding: '12px 4px 12px 0',
+				padding: '12px 4px 12px 20px',
 				display: 'table-cell',
 				'vertical-align': 'top',
 				overflow: 'hidden',
@@ -882,6 +979,20 @@
 			'.jsone-help-key-clickable': {
 				color: '#9936a1',
 				cursor: 'pointer'
+			},
+			'.jsone-drag-indicator': {
+				cursor: 'move',
+				position: 'absolute',
+				left: 0,
+				'text-align': 'center',
+				top: '10px',
+				width: '12px',
+				height: '12px',
+				display: 'inline-block',
+			},
+			'.jsone-drag-indicator:before': {
+				display: 'inline-block',
+				content: '"↕"'
 			},
 			'.jsone-help-value': {
 				padding: '12px 0',
@@ -1032,22 +1143,30 @@
 			return this;
 		};
 		__mdd.prototype.html = function(html) {
-			this.elements.forEach(function(element) {
-				element.innerHTML = html;
-			});
-			return this;
+			if (typeof html !== 'undefined') {
+				this.elements.forEach(function(element) {
+					element.innerHTML = html;
+				});
+				return this;
+			} else {
+				var html = '';
+				this.elements.forEach(function(element) {
+					element += element.innerHTML || '';
+				});
+				return html;
+			}
 		};
-		__mdd.prototype.autosizeTextarea = function(run){
+		__mdd.prototype.autosizeTextarea = function(run) {
 			var self = this;
-			if(run){
-				this.elements.forEach(function(element){
+			if (run) {
+				this.elements.forEach(function(element) {
 					element.style.overflow = 'scroll';
 					element.style.minHeight = (element.scrollHeight) > 12 ? (element.scrollHeight) + 'px' : '12px';
 					element.style.overflow = 'hidden';
 				});
 			} else {
 				this.autosizeTextarea(true);
-				this.on('input', function(e){
+				this.on('input', function(e) {
 					self.autosizeTextarea(true);
 				})
 			}
@@ -1106,7 +1225,7 @@
 				if (config.json || config.url.substr(-5) === '.json') {
 					try {
 						ret = JSON.parse(request.responseText);
-					} catch ( e ) {
+					} catch (e) {
 						err = 'could not parse json from url: ' + config.url;
 						ret = false;
 					}

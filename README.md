@@ -2,6 +2,8 @@
 JSON Editor with configurable editing, validation and documentation.
 Great for providing an easy guided way to edit and view JSON.
 
+This project is under heavy development. Do not adopt yet.
+
 ### Basic Usage
 ``` javascript
 
