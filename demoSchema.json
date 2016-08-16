@@ -24,8 +24,8 @@
       "properties": {
         "name": { "$ref": "#/definitions/name" },
         "description": { "$ref": "#/definitions/description" },
-        "date": { "$ref": "#/definitions/date" },
-      },
+        "date": { "$ref": "#/definitions/date" }
+      }
     },
     "items": {
       "type": "array",
@@ -33,7 +33,6 @@
       "items": { "$ref": "#/definitions/element" }
     }
   },
-
 
   "type": "object",
   "properties": {
@@ -44,8 +43,12 @@
        "type": "object",
        "properties": {
         "key1": {
+          "type": "boolean",
+          "description": "Set the config for key1 to true or false"
+        },
+        "key2": {
           "type": "string",
-          "description": "sup yo"
+          "description": "Set key2 to one of four values"
         }
        }
       }

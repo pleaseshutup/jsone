@@ -36,6 +36,7 @@ demo.on('change', function(path){
 | schemaready | null | the schema and all referenced schema's are loaded and ready
 | jsonready | null | the JSON is loaded and the schema is associated with it
 | change | pathstring | when a change is made this event emits the path as a string delimited by "/" to the changed node
+| autofix | change object | when a json file node type is different than the schema type it is automatically fixed and this event is fired for every node that is fixed
 
 
 ### Schema Support

@@ -216,7 +216,18 @@
 			self.loopJSON(fauxjson, undefined, [], function(node, key, path, type) {
 				// we use node and key to pass by reference
 				var joinpath = path.join('/');
+				var schema = self.getSchemaForPath(path);
 
+				if(schema.type && schema.type !== type){
+					node[key] = self.typeCast(node[key], schema.type);
+					self.emit('autofix', {
+						path: path.concat(key),
+						reason: 'type',
+						typeFrom: type,
+						typeTo: schema.type
+					});
+					type = schema.type;
+				}
 				var index = self.__state.rows.push({
 					node: node,
 					key: key,
@@ -224,7 +235,7 @@
 					joinpath: joinpath,
 					parent: path.slice(0, -1).join('/'),
 					type: type,
-					schema: self.getSchemaForPath(path),
+					schema: schema,
 					changed: true,
 					expanded: self.__state.conf.expanded[joinpath] || path.length < 2 || self.__state.help.indexOf(joinpath) > -1 ? '1' : 0
 				});
@@ -403,7 +414,7 @@
 		};
 
 		self.typeCast = function(val, type){
-			if(typeof val !== type){
+			if(typeof val !== type || val === null){
 				if(!Array.isArray(val) && type === 'array'){
 					val = [];
 				} else if (type == 'object'){
@@ -517,18 +528,6 @@
 
 			if ( (rowstate.type === 'object' || rowstate.type === 'array') && context == 'main') {
 
-				// fixes null or converts to proper object type for editing
-				if (rowstate.schema.type && rowstate.schema.type !== rowstate.type) {
-					rowstate.node[rowstate.key] = self.typeCast(rowstate.node[rowstate.key]);
-					self.emit('autofix', {
-						path: rowstate.path,
-						reason: 'type',
-						typeFrom: rowstate.type,
-						typeTo: rowstate.schema.type,
-						object: self.__json
-					});
-				}
-
 				var newInto = DOM().new('div').css({display: 'table'}).appendTo(into);
 				for(var k in rowstate.node[rowstate.key]){
 					var newRowState = self.__state.rows[self.__state.rowsref[rowstate.path.concat(k).join('/')]];
@@ -556,7 +555,6 @@
 					var form = DOM().new('form').on('submit', function(e) {
 						var addprop = form.find('input').elements[0].value || '';
 						if(addprop && typeof rowstate.node[rowstate.key][addprop] === 'undefined'){
-							console.log('adding prop', addprop);
 							self.addToJSON(rowstate, addprop);
 						}
 						self.renderState();
