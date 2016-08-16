@@ -21,7 +21,11 @@
     "color": { "$ref": "/demoSchemaAddons.json#/definitions/color" },
     "element": {
       "type": "object",
-      "properties": { "$ref": "#/properties" }
+      "properties": {
+        "name": { "$ref": "#/definitions/name" },
+        "description": { "$ref": "#/definitions/description" },
+        "date": { "$ref": "#/definitions/date" },
+      },
     },
     "items": {
       "type": "array",

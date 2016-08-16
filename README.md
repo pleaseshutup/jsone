@@ -1,26 +1,31 @@
 # jsone
 JSON Editor with configurable editing, validation and documentation.
-Great for providing an easy guided way to edit JSON files or view JSON from an API.
-Written in vanilla javascript and dependency free and runs in the browser.
+Great for providing an easy guided way to edit and view JSON.
 
-### Usage
+### Basic Usage
 ``` javascript
 var demo = new jsone({
-    node: document.getElementById('jsone'),
-    json: 'demoJSON.json',
-    schema: 'demoSchema.json'
+    node: document.getElementById('jsone'), // target html element to place jsone
+    json: 'demoJSON.json', // js object or url to jsone file
+    schema: 'demoSchema.json' // js object or url to schema file
 });
 ```
 
-### Config
+### Config Options
 ``` javascript
 {
-"node": "", // the html element to populate with the jsone ui
-"json": "", // a javascript object or the URL to the JSON file to use
-"schema": "" // a javascript object or the URL to the JSON file to use as the schema/rules for the JSON file
+    "node": "", // the html element to populate with the jsone ui
+    "json": "", // a javascript object or the URL to the JSON file to use
+    "schema": "", // a javascript object or the URL to the JSON file to use as the schema/rules for the JSON file
+    "hashNavigation": false, // (boolean) use window.locaton.hash to provide browser history back/foward
+    "url_replace": {}, // (object) a key/value object of replace from/replace to strings for URL's which is handy for local dev testing schema's
 }
+```
 
-### Schema
+### Events
+
+
+### Schema Support
 The schema's used with jsone try to conform to the jsone schema spec at http://json-schema.org/ and use the same structure of properties, items, definitions and references. It should be compatible with the structure starting now and feature gaps will be filled over time.
 
 ### Local Dev/Local Demo
@@ -30,3 +35,11 @@ Needs to run on localhost for XMLHttpRequest to grab files from the local disk.
 python -m SimpleHTTPServer 8080
 http://localhost:8080/demo.html
 ```
+
+
+#### jsone
+Pronounced "jase own" and is a play off "json for everyone" or "jsone editor" as it fills both needs.
+
+
+#### License
+MIT
