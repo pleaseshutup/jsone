@@ -12,7 +12,6 @@
 			window.addEventListener('hashchange', function(e){
 				var hash = (window.location.hash || '').substr(1);
 				var rowstate = self.__state.rows[self.__state.rowsref[self.__jsonSaveKeyNice+'/'+hash]];
-				console.log('hash change', hash, 'row', rowstate);
 				if(rowstate){
 					self.goToNode(rowstate, true, true);
 				}
@@ -180,9 +179,9 @@
 
 			// we're passing an invented object to give the root item the appearance of the loaded file url/string
 
-			self.__jsonSaveKeyNice = self.__jsonSaveKey.split('/').pop();
+			self.jsonName = self.__config.jsonName || self.__jsonSaveKey.split('/').pop();
 
-			self.__state.help = self.__state.conf.help || self.__jsonSaveKeyNice;
+			self.__state.help = self.__state.conf.help || self.jsonName;
 			self.__state.editMode = self.__state.conf.editMode || 'form';
 
 			if(self.__state.conf.menu !== false){
@@ -190,17 +189,30 @@
 			}
 
 			if(window.location.hash.substr(1)){
-				self.__state.help = self.__jsonSaveKeyNice+'/'+window.location.hash.substr(1);
+				self.__state.help = self.jsonName+'/'+window.location.hash.substr(1);
 			}
 
 			var fauxschema = {
 				"properties": {}
 			};
-			fauxschema.properties[self.__jsonSaveKeyNice] = self.__schema;
+			fauxschema.properties[self.jsonName] = self.__schema;
 			self.__schema = fauxschema;
 
+			self.processJSON();
+
+			self.emit('jsonready', true);
+			self.renderState();
+
+		};
+
+		self.processJSON = function() {
+
 			var fauxjson = {};
-			fauxjson[self.__jsonSaveKeyNice] = self.__json;
+			fauxjson[self.jsonName] = self.__json;
+
+			self.__state.rows = [];
+			self.__state.rowsref = {};
+
 			self.loopJSON(fauxjson, undefined, [], function(node, key, path, type) {
 				// we use node and key to pass by reference
 				var joinpath = path.join('/');
@@ -218,9 +230,6 @@
 				});
 				self.__state.rowsref[joinpath] = index - 1;
 			});
-
-			self.emit('jsonready', true);
-			self.renderState();
 		};
 
 		// first pass gets all $ref's which require async operations
@@ -393,23 +402,40 @@
 			return schema;
 		};
 
-		self.initTempRow = function(parentRowstate, key) {
-			console.log('init temp', parentRowstate);
+		self.typeCast = function(val, type){
+			if(typeof val !== type){
+				if(!Array.isArray(val) && type === 'array'){
+					val = [];
+				} else if (type == 'object'){
+					val = {};
+				} else if(type === 'boolean'){
+					val = val ? true : false;
+				} else if(type === 'number'){
+					val = 0
+				} else {
+					val = '';
+				}
+			}
+			return val;
+		};
+
+		self.addToJSON = function(parentRowstate, key) {
+			if(parentRowstate.schema.type === 'array'){
+				key = parentRowstate.node[parentRowstate.key].length || 0;
+			}
 			var newPath = parentRowstate.path.concat(key),
 				joinpath = newPath.join('/'),
 				schema = self.getSchemaForPath(newPath);
-			var rowstate = {
-				node: parentRowstate.node[parentRowState.key],
-				key: key,
-				path: newPath,
-				joinpath: joinpath,
-				parent: parentRowstate.joinpath,
-				type: schema.type || 'string',
-				schema: schema,
-				changed: true,
-				expanded: 0
-			};
-			return rowstate;
+
+			if(parentRowstate.type === 'object'){
+				parentRowstate.node[parentRowstate.key][key] = self.typeCast('', schema.type);
+			} else if(parentRowstate.type === 'array'){
+				parentRowstate.node[parentRowstate.key].push(self.typeCast('', schema.type));
+			}
+
+			self.processJSON();
+			var rowindex = self.__state.rowsref[joinpath];
+			return self.__state.rows[rowindex];
 		};
 
 		// tries to provide some helpful extra information on the current node row like the name or description or value of the node
@@ -440,18 +466,21 @@
 
 				val = DOM().new('div').class('jsone-help-value').appendTo(secinto);
 
-				if(rowstate.type === 'object' || rowstate.type === 'array'){
-					key.class('jsone-help-key jsone-help-key-clickable').on('click', function(e){
-						self.goToNode(rowstate, true);
-					})
-				}
 			}
 
 			if(rowstate.type === 'object' || rowstate.type === 'array'){
 				if(context !== 'main'){
-					DOM().new('span').text('»').class('jsone-help-key-clickable').on('click', function(e){
+
+					DOM().new('span').html(self.getNodeDescription(rowstate)).appendTo(val)
+
+					key.class('jsone-help-key jsone-help-key-clickable').on('click', function(e){
 						self.goToNode(rowstate, true);
-					}).appendTo(val);
+					})
+					val.on('click', function(e){
+						self.goToNode(rowstate, true);
+					})
+
+					DOM().new('span').text(' »').class('jsone-help-key-clickable').appendTo(val);
 				}
 			} else {
 				if (self.__config.editable.indexOf(rowstate.schema.format || rowstate.type) > -1) {
@@ -462,7 +491,6 @@
 						},
 
 					};
-					console.log(rowstate.key, rowstate.type, rowstate);
 					if(rowstate.type === 'boolean'){
 						edit.node = 'input';
 						edit.attr.type = 'checkbox';
@@ -488,9 +516,10 @@
 			}
 
 			if ( (rowstate.type === 'object' || rowstate.type === 'array') && context == 'main') {
+
 				// fixes null or converts to proper object type for editing
-				if (rowstate.type !== 'object' && rowstate.type !== 'array') {
-					rowstate.node[rowstate.key] = {};
+				if (rowstate.schema.type && rowstate.schema.type !== rowstate.type) {
+					rowstate.node[rowstate.key] = self.typeCast(rowstate.node[rowstate.key]);
 					self.emit('autofix', {
 						path: rowstate.path,
 						reason: 'type',
@@ -499,17 +528,51 @@
 						object: self.__json
 					});
 				}
-				var useKeys = [];
-				Object.keys(rowstate.node[rowstate.key]).forEach(function(k) {
-					if (useKeys.indexOf(k) < 0) {
-						useKeys.push(k);
-					}
-				});
+
 				var newInto = DOM().new('div').css({display: 'table'}).appendTo(into);
-				useKeys.forEach(function(k) {
-					var newRowState = self.__state.rows[self.__state.rowsref[rowstate.path.concat(k).join('/')]] || self.initTempRow(rowstate, k);
+				for(var k in rowstate.node[rowstate.key]){
+					var newRowState = self.__state.rows[self.__state.rowsref[rowstate.path.concat(k).join('/')]];
 					self.renderHelpSegment(newRowState, newInto, 'sub');
-				});
+				};
+
+				if(rowstate.type === 'array'){
+					DOM().new('button').text('add row').class('jsone-input jsone-input-add').on('click', function(e){
+						self.addToJSON(rowstate, 'add')
+						self.renderState();
+					}).appendTo(into)
+				} else {
+					var datalist = DOM().new('datalist').attr({id: 'propertyList'});
+					if(rowstate.schema.properties){
+						Object.keys(rowstate.schema.properties).forEach(function(property){
+							if(typeof rowstate.node[rowstate.key][property] === 'undefined'){
+								var desc = '';
+								if(rowstate.schema.properties[property].description){
+									desc += ': '+rowstate.schema.properties[property].description
+								}
+								DOM().new('option').attr({value: property}).text(property+desc).appendTo(datalist);
+							}
+						})
+					}
+					var form = DOM().new('form').on('submit', function(e) {
+						var addprop = form.find('input').elements[0].value || '';
+						if(addprop && typeof rowstate.node[rowstate.key][addprop] === 'undefined'){
+							console.log('adding prop', addprop);
+							self.addToJSON(rowstate, addprop);
+						}
+						self.renderState();
+						e.preventDefault();
+					}).append(
+						DOM().new('label').class('jsone-ibb').text('add property ')
+						.append(
+							DOM().new('input').class('jone-input').attr({type: 'text', list: 'propertyList'})
+						).append(datalist)
+					)
+					.append(DOM().new('span').text(' '))
+					.append(
+						DOM().new('input').class('jsone-input jsone-input-add').attr({type: 'submit', value: 'add property'})
+					).appendTo(into)
+				}
+
 			}
 
 		};
@@ -535,14 +598,12 @@
 				}
 			})
 
-			DOM().new('button').attr({href: '#'}).class('jsone-input').text(self.__state.editMode === 'json' ? 'edit form' : 'edit json').appendTo(titleOps).on('click', function(e){
+			DOM().new('button').attr({href: '#'}).class('jsone-input').text(self.__state.editMode === 'json' ? 'form' : 'json').appendTo(titleOps).on('click', function(e){
 				self.__state.editMode === 'json' ? self.__state.editMode = 'form' : self.__state.editMode = 'json';
 				self.renderState();
 			})
 
-			var into = DOM().new('form').class('jsone-help-items').appendTo(self.__json_help).on('submit', function(e) {
-				e.preventDefault();
-			});
+			var into = DOM().new('div').class('jsone-help-items').appendTo(self.__json_help);
 
 			if( self.__state.editMode === 'json' ){
 				var jsonedit = DOM().new('textarea').class('jsone-input jsone-edit-json').appendTo(into).text(JSON.stringify(rowstate.node[rowstate.key], undefined, 2) || '').autosizeTextarea().on('input change', function(e) {
@@ -729,6 +790,8 @@
 			'.jsone-help': {
 				background: '#fff',
 				'min-height': '400px',
+				'max-height': '400px',
+				'overflow-y': 'auto',
 				transform: 'translate3d(0, 0, 0)',
 				transition: 'transform 0.15s ease-in-out'
 			},
@@ -784,20 +847,28 @@
 				color: '#ccc'
 			},
 			'.jsone-help-menu': {
+				cursor: 'pointer',
 				padding: '8px 12px',
+				width: '40px'
 			},
 			'.jsone-help-menu:before': {
+				display: 'inline-block',
+				transition: 'transform 0.5s ease-in-out',
+				transform: 'rotate(0deg)',
+				'transform-origin': '50% 50%',
 				content: '"»"'
 			},
 			'.jsone[data-menu="1"] .jsone-help-menu:before': {
-				content: '"«"'
+				transform: 'rotate(180deg)',
 			},
 			'.jsone-help-path': {
-				padding: '12px',
-				'width': 'calc(100% - 100px)'
+				padding: '12px 12px 12px 0',
+				'width': 'calc(100% - 90px)'
 			},
 			'.jsone-help-ops': {
-				'width': '62px'
+				'text-align': 'right',
+				'padding-right': '12px',
+				'width': '50px'
 			},
 			'.jsone-help-items': {
 				padding: '0 12px 12px 12px'
@@ -851,16 +922,21 @@
 				height: '22px',
 				width: '100%'
 			},
-			'.jsone-input[type="submit"]': {
-				padding: '10px 20px',
+			'.jsone-input[type="submit"], button.jsone-input': {
+				padding: '4px 10px',
 				color: '#fff',
-				'background-color': '#2196F3',
+				'background-color': '#757575',
 				'border-radius': '2px',
 				'box-shadow': '0 2px 5px 0 rgba(0,0,0,0.16),0 2px 10px 0 rgba(0,0,0,0.12)'
 			},
-			'.jsone-input[type="submit"]:disabled': {
+			'.jsone-input[type="submit"]:disabled, button.jsone-input:disabled': {
 				color: '#9F9F9F',
 				'background-color': '#DFDFDF'
+			},
+			'.jsone-input-add:before': {
+				display: 'inline-block',
+				content: '"+"',
+				padding: '4px'
 			},
 			'.jsone-edit-json': {
 				'box-sizing': 'border-box',
