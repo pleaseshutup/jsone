@@ -11,7 +11,8 @@
 		if (self.__config.hashNavigation) {
 			window.addEventListener('hashchange', function(e) {
 				var hash = (window.location.hash || '').substr(1);
-				var rowstate = self.__state.rows[self.__state.rowsref[self.__jsonSaveKeyNice + '/' + hash]];
+				if(hash){ hash = '/'+hash; }
+				var rowstate = self.__state.rows[self.__state.rowsref[self.jsonName + hash]];
 				if (rowstate) {
 					self.goToNode(rowstate, true, true);
 				}
@@ -115,6 +116,10 @@
 				}
 			}
 		};
+
+		self.valueFromPath = function(path){
+			return self.getFromPath(self.__json, path);
+		}
 
 		self.getFromPath = function(obj, path) {
 			var cur = obj,
@@ -232,12 +237,12 @@
 
 				if (schema.type && schema.type !== type) {
 					node[key] = self.typeCast(node[key], schema.type);
-					self.emit('autofix', {
+					self.emit('autofix', joinpath, node[key], {
 						path: path.concat(key),
 						reason: 'type',
 						typeFrom: type,
 						typeTo: schema.type
-					}, joinpath, node[key]);
+					});
 					type = schema.type;
 				}
 				var index = self.__state.rows.push({
@@ -507,11 +512,11 @@
 							self.goToNode(rowstate, true);
 						}
 					})
-					val.on('click', function(e) {
-						self.goToNode(rowstate, true);
-					})
 
-					DOM().new('span').text(' »').class('jsone-help-key-clickable').appendTo(val);
+
+					DOM().new('span').text(' »').class('jsone-help-key-clickable').appendTo(val).on('click', function(e) {
+						self.goToNode(rowstate, true);
+					});
 				}
 			} else {
 				if (self.__config.editable.indexOf(rowstate.schema.format || rowstate.type) > -1) {
@@ -522,6 +527,7 @@
 						},
 
 					};
+
 					if (rowstate.type === 'boolean') {
 						edit.node = 'input';
 						edit.attr.type = 'checkbox';
@@ -579,7 +585,7 @@
 								}
 							})
 						}
-						var form = DOM().new('form').on('submit', function(e) {
+						var form = DOM().new('form').css({'margin-top': '20px'}).on('submit', function(e) {
 								var addprop = form.find('input').elements[0].value || '';
 								if (addprop && typeof rowstate.node[rowstate.key][addprop] === 'undefined') {
 									self.addToJSON(rowstate, addprop);
@@ -801,22 +807,22 @@
 					path = target.getAttribute('data-path');
 				}
 			}
-			if (path) {
-				if (e.type === 'mousedown' || e.type === 'touchstart') {
-					self.__curMoveEvent = {
-						path: path,
-						getState: function() {
-							self.__curMoveEvent.els = self.__json_help.find('.jsone-help-row').elements
-							self.__curMoveEvent.currentOrder = self.__curMoveEvent.els.map(function(el) {
-								return el.getAttribute('data-path');
-							})
-							self.__curMoveEvent.index = self.__curMoveEvent.currentOrder.indexOf(path);
-						}
-					};
-					self.__curMoveEvent.getState();
-					window.addEventListener('mousemove', self.sortingEvents)
-					window.addEventListener('mouseup', self.sortingEvents)
-				} else if (e.type === 'mouseup' || e.type === 'touchend') {
+			if (e.type === 'mousedown' || e.type === 'touchstart') {
+				self.__curMoveEvent = {
+					path: path,
+					getState: function() {
+						self.__curMoveEvent.els = self.__json_help.find('.jsone-help-row').elements
+						self.__curMoveEvent.currentOrder = self.__curMoveEvent.els.map(function(el) {
+							return el.getAttribute('data-path');
+						})
+						self.__curMoveEvent.index = self.__curMoveEvent.currentOrder.indexOf(path);
+					}
+				};
+				self.__curMoveEvent.getState();
+				window.addEventListener('mousemove', self.sortingEvents)
+				window.addEventListener('mouseup', self.sortingEvents)
+			} else if (path && self.__curMoveEvent) {
+				if (e.type === 'mouseup' || e.type === 'touchend') {
 					setTimeout(function() {
 						self.__curMoveEvent.getState();
 						var parentPath = self.__curMoveEvent.path.split('/').slice(0, -1).join('/');
@@ -857,13 +863,13 @@
 		}
 
 		self.__listeners = {};
-		self.emit = function(event, value) {
+		self.emit = function() {
 			// imit to the general listener "event" and the specified event
 			if (self.__listeners.event) {
-				self.__listeners.event(event, value);
+				self.__listeners.event([].slice.call(arguments));
 			}
 			if (self.__listeners[event]) {
-				self.__listeners[event](event, value);
+				self.__listeners[event](arguments[0], arguments[1], arguments[2], arguments[3]);
 			}
 		};
 

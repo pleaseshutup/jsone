@@ -15,7 +15,7 @@
     },
     "date": {
       "type": "string",
-      "input": "date",
+      "format": "date",
       "description": "all \"date\" keys are a date everywhere"
     },
     "color": { "$ref": "/demoSchemaAddons.json#/definitions/color" },

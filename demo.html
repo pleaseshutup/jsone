@@ -45,8 +45,8 @@
 					hashNavigation: true
 				});
 
-			demo.on('event', function(type, value){
-				jsoneLog(type, value)
+			demo.on('event', function(args){
+				jsoneLog(args)
 			})
 		</script>
 
@@ -57,9 +57,9 @@
 			};
 			// demo/local dev helpers
 			var logdiv = document.getElementById('jsone-logs');
-			function jsoneLog(type, val){
-				console.log('jsone event', type, val)
-				DOM().new('div').html('<b>'+type+':</b> '+JSON.stringify(val)).appendTo(DOM(logdiv))
+			function jsoneLog(args){
+				console.log('jsone event', args[0], args)
+				DOM().new('div').html('<b>'+args[0]+':</b> '+JSON.stringify(args)).appendTo(DOM(logdiv))
 				logdiv.scrollTop = logdiv.scrollHeight;
 			}
 		</script>
