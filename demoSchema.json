@@ -49,6 +49,11 @@
         "key2": {
           "type": "string",
           "description": "Set key2 to one of four values"
+        },
+        "key3": {
+          "type": "number",
+          "format": "number",
+          "description": "a number between 0 and 10"
         }
        }
       }

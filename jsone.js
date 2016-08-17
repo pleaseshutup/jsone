@@ -87,7 +87,7 @@
 							}
 						}
 
-						self.emit('change', joinpath, json_object);
+						self.__track_change(joinpath, json_object);
 						self.renderState({
 							rowsOnly: true
 						});
@@ -109,7 +109,7 @@
 					}
 
 					rowstate.changed = true;
-					self.emit('change', joinpath, rowstate.node[rowstate.key]);
+					self.__track_change(joinpath, rowstate.node[rowstate.key]);
 					self.renderState({
 						rowsOnly: true
 					});
@@ -460,6 +460,7 @@
 			} else if (parentRowstate.type === 'array') {
 				parentRowstate.node[parentRowstate.key].push(self.typeCast('', schema.type));
 			}
+			self.__track_change(parentRowstate.joinpath, parentRowstate.node[parentRowstate.key]);
 
 			self.processJSON();
 			var rowindex = self.__state.rowsref[joinpath];
@@ -536,14 +537,12 @@
 						edit.node = 'input';
 						edit.attr.type = rowstate.schema.format.replace(/\-/g, '');
 						edit.attr.value = rowstate.node[rowstate.key];
-					} else {
-						edit.text = rowstate.node[rowstate.key] || '';
 					}
 					edit.dom = DOM().new(edit.node).class('jsone-input').attr(edit.attr).appendTo(val).on('input change', function(e) {
 						self.inputChangeEvent(edit.dom.elements[0], rowstate.joinpath);
 					});
-					if (edit.text) {
-						edit.dom.text(edit.text || '').autosizeTextarea();
+					if(edit.node === 'textarea'){
+						edit.dom.text(rowstate.node[rowstate.key] || '').autosizeTextarea();
 					}
 				}
 			}
@@ -555,7 +554,7 @@
 			if ((rowstate.type === 'object' || rowstate.type === 'array') && context == 'main') {
 
 				var newInto = DOM().new('div').css({
-					display: 'table'
+					display: 'table',
 				}).appendTo(into);
 				for (var k in rowstate.node[rowstate.key]) {
 					var newRowState = self.__state.rows[self.__state.rowsref[rowstate.path.concat(k).join('/')]];
@@ -686,7 +685,7 @@
 			self.__state.rows.forEach(function(rowstate) {
 				var indent = rowstate.path.length - 1,
 					css = {
-						'padding-left': (indent * 20) + 'px',
+						'padding-left': (indent * 10) + 'px',
 						display: indent > 0 ? 'none' : 'block'
 					},
 					append = !rowstate.row;
@@ -834,7 +833,7 @@
 								parentRow.type !== 'array' ? newValue[row.key] = row.node[row.key] : newValue.push(row.node[row.key])
 							})
 							parentRow.node[parentRow.key] = newValue;
-							self.emit('change', parentPath, newValue);
+							self.__track_change(parentPath, newValue);
 							self.processJSON();
 							self.renderState();
 						}
@@ -860,6 +859,30 @@
 					self.__curMoveEvent.lastY = self.__curMoveEvent.y;
 				}
 			}
+		}
+
+		self.__changes = [];
+		self.__track_change = function(path, value){
+			var thisPathExists = false;
+			self.__changes.forEach(function(changedPath){
+				if(path.indexOf(changedPath) > -1){
+					thisPathExists = true;
+				}
+			});
+
+			if(!thisPathExists){
+				self.__changes.push(path);
+			}
+
+			self.emit('change', path, value);
+			self.getChanges();
+		}
+		self.getChanges = function(){
+			var changes = {};
+			self.__changes.forEach(function(changedPath){
+				changes[changedPath] = self.valueFromPath(changedPath.split('/').slice(1));
+			});
+			return changes;
 		}
 
 		self.__listeners = {};
@@ -908,6 +931,7 @@
 				'min-height': '400px',
 				'max-height': '400px',
 				'overflow-y': 'auto',
+				'max-width': '800px',
 				transform: 'translate3d(0, 0, 0)',
 				transition: 'transform 0.15s ease-in-out'
 			},
@@ -1046,10 +1070,10 @@
 				'border-radius': '0',
 				'border-bottom': '1px solid #ccc',
 				background: '#fff',
-				resize: 'vertical',
 				'box-sizing': 'border-box'
 			},
 			'textarea.jsone-input': {
+				resize: 'vertical',
 				height: '22px',
 				width: '100%'
 			},

@@ -15,7 +15,13 @@ var demo = new jsone({
 
 demo.on('change', function(path){
     console.log('change to path', path);
+
+    Object.keys(demo.getChanges()).forEach(function(changedPath, ar){
+        console.log('path', changedPath, 'changed to', ar[changedPath])
+    })
 })
+
+
 
 ```
 
@@ -39,6 +45,14 @@ demo.on('change', function(path){
 | jsonready | null | the JSON is loaded and the schema is associated with it
 | change | pathstring, value | when a change is made this event emits the path as a string delimited by "/" to the changed node
 | autofix | pathstring, value, change object | when a json file node type is different than the schema type it is automatically fixed and this event is fired for every node that is fixed
+
+### Methods
+| name | arguments | description |
+| --- | --- | --- |
+| on | event, callback | executes call back on the specified event
+| getChanges | null | returns an object where each key is the path to the highest level containing node change and the value of that node 
+| json | json url or javascript object | change the active json file
+| schema | schema url or javascript object | change the active schema file
 
 
 ### Schema Support
