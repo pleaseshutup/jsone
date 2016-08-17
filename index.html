@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Jsone : JSON Editor with custom configuration hinting. Great for providing an easy guided way to edit or view JSON. Vanilla js">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Jsone</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/pleaseshutup/jsone">View on GitHub</a>
+
+          <h1 id="project_title">Jsone</h1>
+          <h2 id="project_tagline">JSON Editor with custom configuration hinting. Great for providing an easy guided way to edit or view JSON. Vanilla js</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/pleaseshutup/jsone/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/pleaseshutup/jsone/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="jsone" class="anchor" href="#jsone" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>jsone</h1>
+
+<p>JSON Editor with configurable editing, validation and documentation.
+Great for providing an easy guided way to edit and view JSON.</p>
+
+<p>This project is under heavy development. Do not adopt yet.</p>
+
+<p><a href="https://github.com/pleaseshutup/jsone/blob/master/media/demo.mp4"><img src="https://github.com/pleaseshutup/jsone/blob/master/media/demo.png" alt="demo.png"></a></p>
+
+<h3>
+<a id="basic-usage" class="anchor" href="#basic-usage" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Basic Usage</h3>
+
+<div class="highlight highlight-source-js"><pre>
+<span class="pl-k">var</span> demo <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">jsone</span>({
+    node<span class="pl-k">:</span> <span class="pl-c1">document</span>.<span class="pl-c1">getElementById</span>(<span class="pl-s"><span class="pl-pds">'</span>jsone<span class="pl-pds">'</span></span>), <span class="pl-c">// target html element to place jsone</span>
+    json<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>demoJSON.json<span class="pl-pds">'</span></span>, <span class="pl-c">// js object or url to jsone file</span>
+    schema<span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">'</span>demoSchema.json<span class="pl-pds">'</span></span> <span class="pl-c">// js object or url to schema file</span>
+});
+
+<span class="pl-smi">demo</span>.<span class="pl-en">on</span>(<span class="pl-s"><span class="pl-pds">'</span>change<span class="pl-pds">'</span></span>, <span class="pl-k">function</span>(<span class="pl-smi">path</span>){
+    <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">'</span>change to path<span class="pl-pds">'</span></span>, path);
+
+    <span class="pl-c1">Object</span>.<span class="pl-en">keys</span>(<span class="pl-smi">demo</span>.<span class="pl-en">getChanges</span>()).<span class="pl-en">forEach</span>(<span class="pl-k">function</span>(<span class="pl-smi">changedPath</span>, <span class="pl-smi">ar</span>){
+        <span class="pl-en">console</span>.<span class="pl-c1">log</span>(<span class="pl-s"><span class="pl-pds">'</span>path<span class="pl-pds">'</span></span>, changedPath, <span class="pl-s"><span class="pl-pds">'</span>changed to<span class="pl-pds">'</span></span>, ar[changedPath])
+    })
+})
+
+
+</pre></div>
+
+<h3>
+<a id="config-options" class="anchor" href="#config-options" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Config Options</h3>
+
+<div class="highlight highlight-source-js"><pre>{
+    <span class="pl-s"><span class="pl-pds">"</span>node<span class="pl-pds">"</span></span><span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>, <span class="pl-c">// the html element to populate with the jsone ui</span>
+    <span class="pl-s"><span class="pl-pds">"</span>json<span class="pl-pds">"</span></span><span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>, <span class="pl-c">// a javascript object or the URL to the JSON file to use</span>
+    <span class="pl-s"><span class="pl-pds">"</span>schema<span class="pl-pds">"</span></span><span class="pl-k">:</span> <span class="pl-s"><span class="pl-pds">"</span><span class="pl-pds">"</span></span>, <span class="pl-c">// a javascript object or the URL to the JSON file to use as the schema/rules for the JSON file</span>
+    <span class="pl-s"><span class="pl-pds">"</span>hashNavigation<span class="pl-pds">"</span></span><span class="pl-k">:</span> <span class="pl-c1">false</span>, <span class="pl-c">// (boolean) use window.locaton.hash to provide browser history back/foward</span>
+    <span class="pl-s"><span class="pl-pds">"</span>url_replace<span class="pl-pds">"</span></span><span class="pl-k">:</span> {}, <span class="pl-c">// (object) a key/value object of replace from/replace to strings for URL's which is handy for local dev testing schema's</span>
+}</pre></div>
+
+<h3>
+<a id="events" class="anchor" href="#events" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Events</h3>
+
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>arguments</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>error</td>
+<td>error object</td>
+<td>there is an error of any kind</td>
+</tr>
+<tr>
+<td>init</td>
+<td>null</td>
+<td>jsone is initialized and is going to try to get the schema/json files</td>
+</tr>
+<tr>
+<td>schemaready</td>
+<td>null</td>
+<td>the schema and all referenced schema's are loaded and ready</td>
+</tr>
+<tr>
+<td>jsonready</td>
+<td>null</td>
+<td>the JSON is loaded and the schema is associated with it</td>
+</tr>
+<tr>
+<td>change</td>
+<td>pathstring, value</td>
+<td>when a change is made this event emits the path as a string delimited by "/" to the changed node</td>
+</tr>
+<tr>
+<td>autofix</td>
+<td>pathstring, value, change object</td>
+<td>when a json file node type is different than the schema type it is automatically fixed and this event is fired for every node that is fixed</td>
+</tr>
+</tbody>
+</table>
+
+<h3>
+<a id="methods" class="anchor" href="#methods" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Methods</h3>
+
+<table>
+<thead>
+<tr>
+<th>name</th>
+<th>arguments</th>
+<th>description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>on</td>
+<td>event, callback</td>
+<td>executes call back on the specified event</td>
+</tr>
+<tr>
+<td>getChanges</td>
+<td>null</td>
+<td>returns an object where each key is the path to the highest level containing node change and the value of that node</td>
+</tr>
+<tr>
+<td>json</td>
+<td>json url or javascript object</td>
+<td>change the active json file</td>
+</tr>
+<tr>
+<td>schema</td>
+<td>schema url or javascript object</td>
+<td>change the active schema file</td>
+</tr>
+</tbody>
+</table>
+
+<h3>
+<a id="schema-support" class="anchor" href="#schema-support" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Schema Support</h3>
+
+<p>The schema's used with jsone try to conform to the jsone schema spec at <a href="http://json-schema.org/">http://json-schema.org/</a> and use the same structure of properties, items, definitions and references. It should be compatible with the structure starting now and feature gaps will be filled over time.</p>
+
+<h3>
+<a id="local-devlocal-demo" class="anchor" href="#local-devlocal-demo" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Local Dev/Local Demo</h3>
+
+<p>Needs to run on localhost for XMLHttpRequest to grab files from the local disk.</p>
+
+<div class="highlight highlight-source-shell"><pre>python -m SimpleHTTPServer 8080
+http://localhost:8080/demo.html</pre></div>
+
+<h4>
+<a id="jsone-1" class="anchor" href="#jsone-1" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>jsone</h4>
+
+<p>Pronounced "jase own" and is a play off "json for everyone" or "jsone editor" as it fills both needs.</p>
+
+<h4>
+<a id="license" class="anchor" href="#license" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>License</h4>
+
+<p>MIT</p>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Jsone maintained by <a href="https://github.com/pleaseshutup">pleaseshutup</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+    
+
+  </body>
+</html>
