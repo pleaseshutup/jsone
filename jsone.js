@@ -108,7 +108,7 @@
 					}
 
 					rowstate.changed = true;
-					self.emit('change', joinpath);
+					self.emit('change', joinpath, rowstate.node[rowstate.key]);
 					self.renderState({
 						rowsOnly: true
 					});
@@ -237,7 +237,7 @@
 						reason: 'type',
 						typeFrom: type,
 						typeTo: schema.type
-					});
+					}, joinpath, node[key]);
 					type = schema.type;
 				}
 				var index = self.__state.rows.push({
@@ -503,7 +503,7 @@
 					DOM().new('span').html(self.getNodeDescription(rowstate)).appendTo(val)
 
 					key.class('jsone-help-key jsone-help-key-clickable').on('click', function(e) {
-						if(!self.__curMoveEvent){
+						if (!self.__curMoveEvent) {
 							self.goToNode(rowstate, true);
 						}
 					})
@@ -791,19 +791,21 @@
 		self.sortingEvents = function(e) {
 			e.preventDefault();
 			var target = e.target,
-				path = e.target.getAttribute('data-path'), i = 0;
-			while (!path && i < 5) {
-				target = target.parentNode;
-				if(target){
+				path = e.target.getAttribute('data-path'),
+				i = 0;
+			while (!path && target) {
+				if (target.parentNode.className === 'jsone') {
+					target = false;
+				} else if (target.parentNode) {
+					target = target.parentNode;
 					path = target.getAttribute('data-path');
 				}
-				i++;
 			}
 			if (path) {
 				if (e.type === 'mousedown' || e.type === 'touchstart') {
 					self.__curMoveEvent = {
 						path: path,
-						getState: function(){
+						getState: function() {
 							self.__curMoveEvent.els = self.__json_help.find('.jsone-help-row').elements
 							self.__curMoveEvent.currentOrder = self.__curMoveEvent.els.map(function(el) {
 								return el.getAttribute('data-path');
@@ -815,7 +817,21 @@
 					window.addEventListener('mousemove', self.sortingEvents)
 					window.addEventListener('mouseup', self.sortingEvents)
 				} else if (e.type === 'mouseup' || e.type === 'touchend') {
-					setTimeout(function(){
+					setTimeout(function() {
+						self.__curMoveEvent.getState();
+						var parentPath = self.__curMoveEvent.path.split('/').slice(0, -1).join('/');
+						var parentRow = self.__state.rows[self.__state.rowsref[parentPath]];
+						if (self.__curMoveEvent.currentOrder && (parentRow.type === 'object' || parentRow.type === 'array')) {
+							var newValue = parentRow.type !== 'array' ? {} : [];
+							self.__curMoveEvent.currentOrder.forEach(function(rowPath) {
+								var row = self.__state.rows[self.__state.rowsref[rowPath]];
+								parentRow.type !== 'array' ? newValue[row.key] = row.node[row.key] : newValue.push(row.node[row.key])
+							})
+							parentRow.node[parentRow.key] = newValue;
+							self.emit('change', parentPath, newValue);
+							self.processJSON();
+							self.renderState();
+						}
 						self.__curMoveEvent = false;
 					}, 100);
 					window.removeEventListener('mousemove', self.sortingEvents)
@@ -825,8 +841,8 @@
 						var toIndex = self.__curMoveEvent.currentOrder.indexOf(path);
 						var fromRow = self.__curMoveEvent.els[self.__curMoveEvent.index],
 							toRow = self.__curMoveEvent.els[toIndex];
-						if(fromRow && toRow){
-							if(self.__curMoveEvent.direction === 'down'){
+						if (fromRow && toRow) {
+							if (self.__curMoveEvent.direction === 'down') {
 								toRow.parentNode.insertBefore(toRow, fromRow)
 							} else {
 								toRow.parentNode.insertBefore(fromRow, toRow)
