@@ -2,9 +2,9 @@
 JSON Editor with configurable editing, validation and documentation.
 Great for providing an easy guided way to edit and view JSON.
 
-This project is under heavy development. Do not adopt yet.
+This project is under heavy development. Do not adopt yet. [Try the demo][4]
 
-[![demo.png][2]][3]
+[![demo.png][2]][4]
 
 
 ### Basic Usage
@@ -80,3 +80,4 @@ MIT
 [1]: https://github.com/pleaseshutup/jsone
 [2]: https://github.com/pleaseshutup/jsone/blob/master/media/demo.png
 [3]: https://github.com/pleaseshutup/jsone/blob/master/media/demo.mp4
+[4]: https://pleaseshutup.github.io/jsone/
