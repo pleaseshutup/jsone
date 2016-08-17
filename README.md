@@ -4,6 +4,9 @@ Great for providing an easy guided way to edit and view JSON.
 
 This project is under heavy development. Do not adopt yet.
 
+[![demo.png][2]][3]
+
+
 ### Basic Usage
 ``` javascript
 
@@ -73,3 +76,7 @@ Pronounced "jase own" and is a play off "json for everyone" or "jsone editor" as
 
 #### License
 MIT
+
+[1]: https://github.com/pleaseshutup/jsone
+[2]: https://github.com/pleaseshutup/jsone/blob/master/media/demo.png
+[3]: https://github.com/pleaseshutup/jsone/blob/master/media/demo.mp4
