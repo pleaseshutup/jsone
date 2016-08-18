@@ -471,9 +471,9 @@
 			var str = '';
 			if (rowstate.type === 'object') {
 				str = rowstate.node[rowstate.key].name || rowstate.node[rowstate.key].title || rowstate.node[rowstate.key].label || rowstate.node[rowstate.key].description;
-				return str ? '<span class="jsone-node-helper">' + str + '</span>' : '';
+				return typeof str === 'string' ? '<span class="jsone-node-helper">' + DOM().new('span').text().text() + '</span>' : '';
 			} else if (rowstate.type === 'number' || rowstate.type === 'string') {
-				return '<span class="jsone-node-colon">:</span><span class="jsone-node-value">' + (rowstate.node[rowstate.key] || '<span class="jsone-node-empty"></span>') + '</span>';
+				return '<span class="jsone-node-colon">:</span><span class="jsone-node-value">' + (rowstate.node[rowstate.key] ? DOM().new('span').text(rowstate.node[rowstate.key]).text() : '<span class="jsone-node-empty"></span>') + '</span>';
 			} else if (rowstate.type === 'null') {
 				return '<span class="jsone-node-helper">null</span>';
 			}
@@ -494,7 +494,7 @@
 
 				key = DOM().new('div').class('jsone-help-key').attr({
 					title: rowstate.joinpath + ' (' + rowstate.type + ')'
-				}).html(rowstate.path[rowstate.path.length - 1] + '<span class="jsone-node-colon">:</span>').appendTo(secinto);
+				}).text(rowstate.path[rowstate.path.length - 1]).append(DOM().new('span').class('jsone-node-colon').text(':')).appendTo(secinto);
 
 				val = DOM().new('div').class('jsone-help-value').appendTo(secinto);
 
@@ -617,7 +617,7 @@
 			self.__json_help.html('');
 
 			var top = DOM().new('div').appendTo(self.__json_help);
-			var titleMenu = DOM().new('span').class('jsone-ibb jsone-help-menu').appendTo(top).on('click', function(e) {
+			DOM().new('span').class('jsone-ibb jsone-help-menu').appendTo(top).on('click', function(e) {
 				self.__state.conf.menu = self.__state.conf.menu !== false ? false : true;
 				console.log("menu", self.__state.conf.menu);
 				self.__node.attr({
@@ -700,7 +700,7 @@
 							DOM().new('span').class('jsone-row-toggle')
 						)
 						.append(
-							DOM().new('span').class('jsone-row-text').html('<span class="jsone-node-key">' + rowstate.path[rowstate.path.length - 1] + '</span>' + self.getNodeDescription(rowstate))
+							DOM().new('span').class('jsone-row-text').html('<span class="jsone-node-key">' + rowstate.key + '</span>' + self.getNodeDescription(rowstate))
 						)
 						.css(css)
 						.attr({
@@ -795,8 +795,7 @@
 		self.sortingEvents = function(e) {
 			e.preventDefault();
 			var target = e.target,
-				path = e.target.getAttribute('data-path'),
-				i = 0;
+				path = e.target.getAttribute('data-path');
 			while (!path && target) {
 				if (target.parentNode.className === 'jsone') {
 					target = false;
@@ -1182,10 +1181,18 @@
 			return this;
 		};
 		__mdd.prototype.text = function(text) {
-			this.elements.forEach(function(element) {
-				element.textContent = text;
-			});
-			return this;
+			if (typeof text !== 'undefined') {
+				this.elements.forEach(function(element) {
+					element.textContent = text;
+				});
+				return this;
+			} else {
+				var text = '';
+				this.elements.forEach(function(element) {
+					text += element.textContent || '';
+				});
+				return text;
+			}
 		};
 		__mdd.prototype.html = function(html) {
 			if (typeof html !== 'undefined') {
@@ -1196,7 +1203,7 @@
 			} else {
 				var html = '';
 				this.elements.forEach(function(element) {
-					element += element.innerHTML || '';
+					html += element.innerHTML || '';
 				});
 				return html;
 			}

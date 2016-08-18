@@ -3,8 +3,9 @@
   "devDependencies": {
     "uglifyjs": "latest"
   },
-  "start": "python -m SimpleHTTPServer 8080",
+  
   "scripts": {
+    "start": "python -m SimpleHTTPServer 8080",
     "build": "uglifyjs jsone.js -c -m -o jsone.min.js; gzip < jsone.min.js > jsone.min.js.gz; stat --printf=\"%s\" jsone.min.js.gz; echo \" bytes\""
   }
 }
