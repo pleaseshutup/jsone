@@ -75,8 +75,7 @@
 						}
 
 						// mark sub-tree changed
-						var subrowstate = self.__state.rows[index],
-							cancel = false;
+						var subrowstate = self.__state.rows[index];
 						while (subrowstate) {
 							if (subrowstate.joinpath.indexOf(joinpath) === 0) {
 								subrowstate.changed = true;
