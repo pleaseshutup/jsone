@@ -4,7 +4,7 @@
   "date": "",
   "items": [{
     "name": "item name",
-    "description": "item description",
+    "description": "item description <span>hello</span>",
     "date": "2016-08-08T14:24:15.056Z"
   },
     null,
