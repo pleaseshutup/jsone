@@ -144,7 +144,7 @@
 			if (typeofjson === 'object') {
 				self.__json = json;
 				if (!self.__jsonSaveKey) {
-					self.__jsonSaveKey = 'customObject';
+					self.__jsonSaveKey = self.__config.jsonName || 'customObject';
 				}
 				self.initJSON();
 			} else if (typeofjson === 'string') {
@@ -348,10 +348,8 @@
 		self.initSchema = function(schema) {
 			self.__ref_urls = [];
 			self.__refs = {};
-			console.log('schema', schema);
 			self.schemaGetRefs(schema, function(err, success) {
 				self.emit('schemaready', true);
-				console.log('schema parsed', schema);
 				self.json(self.__config.json);
 			});
 		};
@@ -619,7 +617,6 @@
 			var top = DOM().new('div').appendTo(self.__json_help);
 			DOM().new('span').class('jsone-ibb jsone-help-menu').appendTo(top).on('click', function(e) {
 				self.__state.conf.menu = self.__state.conf.menu !== false ? false : true;
-				console.log("menu", self.__state.conf.menu);
 				self.__node.attr({
 					'data-menu': self.__state.conf.menu !== false ? '1' : '0'
 				})
@@ -671,9 +668,6 @@
 			}
 			//conf is the state settings we store in local storage and try to load on refresh
 
-			if (self.__json_rows.html()) {
-				console.log('has data', self.__json_rows.html());
-			}
 			self.__state.conf = {
 				__jsone_saveKey: self.__jsonSaveKey,
 				expanded: {},
