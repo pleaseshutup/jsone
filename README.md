@@ -19,8 +19,8 @@ var demo = new jsone({
 demo.on('change', function(path){
     console.log('change to path', path);
 
-    Object.keys(demo.getChanges()).forEach(function(changedPath, ar){
-        console.log('path', changedPath, 'changed to', ar[changedPath])
+    demo.getChanges().forEach(function(change){
+        console.log('path', change.path, 'changed to', change.value)
     })
 })
 
@@ -54,7 +54,7 @@ demo.on('change', function(path){
 | name | arguments | description |
 | --- | --- | --- |
 | on | event, callback | executes call back on the specified event
-| getChanges | null | returns an object where each key is the path to the highest level containing node change and the value of that node 
+| getChanges | null | returns an array of changes with the path and value of each change
 | json | json url or javascript object | change the active json file
 | schema | schema url or javascript object | change the active schema file
 
