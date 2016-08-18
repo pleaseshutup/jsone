@@ -471,7 +471,7 @@
 			var str = '';
 			if (rowstate.type === 'object') {
 				str = rowstate.node[rowstate.key].name || rowstate.node[rowstate.key].title || rowstate.node[rowstate.key].label || rowstate.node[rowstate.key].description;
-				return typeof str === 'string' ? '<span class="jsone-node-helper">' + DOM().new('span').text().text() + '</span>' : '';
+				return typeof str === 'string' ? '<span class="jsone-node-helper">' + DOM().new('span').text(str).text() + '</span>' : '';
 			} else if (rowstate.type === 'number' || rowstate.type === 'string') {
 				return '<span class="jsone-node-colon">:</span><span class="jsone-node-value">' + (rowstate.node[rowstate.key] ? DOM().new('span').text(rowstate.node[rowstate.key]).text() : '<span class="jsone-node-empty"></span>') + '</span>';
 			} else if (rowstate.type === 'null') {
