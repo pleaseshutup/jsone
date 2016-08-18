@@ -872,7 +872,8 @@
 		self.getChanges = function(){
 			var changes = [];
 			self.__changes.forEach(function(changedPath){
-				changes.push({path: changedPath, value:self.valueFromPath(changedPath.split('/').slice(1))});
+				var modpath = changedPath.split('/').slice(1);
+				changes.push({path: modpath, joinpath: modpath.join('/'), value:self.valueFromPath(modpath)});
 			});
 			return changes;
 		}
