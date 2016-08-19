@@ -12,7 +12,7 @@
 			window.addEventListener('hashchange', function(e) {
 				var hash = (window.location.hash || '').substr(1);
 				if(hash){ hash = '/'+hash; }
-				var rowstate = self.__state.rows[self.__state.rowsref[self.jsonName + hash]];
+				var rowstate = self.rows[self.rowsref[self.jsonName + hash]];
 				if (rowstate) {
 					self.goToNode(rowstate, true, true);
 				}
@@ -22,14 +22,11 @@
 		// the node we write into. Take provided node, query selector, id=jsone or just the body
 		self.__node = DOM(config.node || document.querySelector(config.node) || document.getElementById('jsone') || document.body).class('jsone');
 
-		self.__state = {
-			rows: [],
-			rowsref: {},
-			conf: {},
-			help: 0,
-			is_changed: false,
-			changes: {}
-		};
+		self.rows = [];
+		self.rowsref = {};
+		self.help = 0;
+
+		self.__state = {}
 
 		self.inputChangeEvent = function(el, joinpath) {
 			clearTimeout(self.__state.changes_timer);
@@ -55,8 +52,8 @@
 				el.style.outline = '2px solid red';
 			}
 			if (ok) {
-				var index = self.__state.rowsref[joinpath];
-				var rowstate = self.__state.rows[index];
+				var index = self.rowsref[joinpath];
+				var rowstate = self.rows[index];
 				if (rowstate) {
 					if (JSON.stringify(rowstate.node[rowstate.key]) !== JSON.stringify(json_object)) {
 
@@ -75,12 +72,12 @@
 						}
 
 						// mark sub-tree changed
-						var subrowstate = self.__state.rows[index];
+						var subrowstate = self.rows[index];
 						while (subrowstate) {
 							if (subrowstate.joinpath.indexOf(joinpath) === 0) {
 								subrowstate.changed = true;
 								index++;
-								subrowstate = self.__state.rows[index];
+								subrowstate = self.rows[index];
 							} else {
 								subrowstate = false;
 							}
@@ -96,7 +93,7 @@
 		}
 
 		self.checkForChanges = function(el, joinpath) {
-			var rowstate = self.__state.rows[self.__state.rowsref[joinpath]];
+			var rowstate = self.rows[self.rowsref[joinpath]];
 			if (rowstate) {
 				if (rowstate.node[rowstate.key] != el.value) {
 					if (rowstate.type === 'number') {
@@ -188,23 +185,23 @@
 
 			self.getStateConfig(self.__jsonSaveKey);
 
-			!Object.keys(self.__state.conf.expanded).length ? self.__state.conf.expanded[self.__jsonSaveKey] = true : null;
+			!Object.keys(self.__state.expanded).length ? self.__state.expanded[self.__jsonSaveKey] = true : null;
 
 			// we're passing an invented object to give the root item the appearance of the loaded file url/string
 
 			self.jsonName = self.__config.jsonName || self.__jsonSaveKey.split('/').pop();
 
-			self.__state.help = self.__state.conf.help || self.jsonName;
-			self.__state.editMode = self.__state.conf.editMode || 'form';
+			self.help = self.__state.help || self.jsonName;
+			self.__state.editMode = self.__state.editMode || 'form';
 
-			if (self.__state.conf.menu !== false) {
+			if (self.__state.menu !== false) {
 				self.__node.attr({
 					'data-menu': '1'
 				})
 			}
 
 			if (window.location.hash.substr(1)) {
-				self.__state.help = self.jsonName + '/' + window.location.hash.substr(1);
+				self.help = self.jsonName + '/' + window.location.hash.substr(1);
 			}
 
 			var fauxschema = {
@@ -225,8 +222,8 @@
 			var fauxjson = {};
 			fauxjson[self.jsonName] = self.__json;
 
-			self.__state.rows = [];
-			self.__state.rowsref = {};
+			self.rows = [];
+			self.rowsref = {};
 			self.__json_rows.html(''); // clear it in case of re-init/render
 
 			self.loopJSON(fauxjson, undefined, [], function(node, key, path, type) {
@@ -244,7 +241,7 @@
 					});
 					type = schema.type;
 				}
-				var index = self.__state.rows.push({
+				var index = self.rows.push({
 					node: node,
 					key: key,
 					path: path,
@@ -253,9 +250,9 @@
 					type: type,
 					schema: schema,
 					changed: true,
-					expanded: self.__state.conf.expanded[joinpath] || path.length < 2 || self.__state.help.indexOf(joinpath) > -1 ? '1' : 0
+					expanded: self.__state.expanded[joinpath] || path.length < 2 || self.help.indexOf(joinpath) > -1 ? '1' : 0
 				});
-				self.__state.rowsref[joinpath] = index - 1;
+				self.rowsref[joinpath] = index - 1;
 			});
 		};
 
@@ -387,7 +384,7 @@
 
 				if (i > 0) {
 					var parentPath = path.slice(0, i);
-					if (self.__state.rows[self.__state.rowsref[parentPath.join('/')]].type === 'array') {
+					if (self.rows[self.rowsref[parentPath.join('/')]].type === 'array') {
 						var itemSchema = self.getSchemaForPath(parentPath);
 						if (itemSchema.items) {
 							nextSchemas.push(itemSchema.items);
@@ -460,8 +457,8 @@
 			self.__track_change(parentRowstate.joinpath, parentRowstate.node[parentRowstate.key]);
 
 			self.processJSON();
-			var rowindex = self.__state.rowsref[joinpath];
-			return self.__state.rows[rowindex];
+			var rowindex = self.rowsref[joinpath];
+			return self.rows[rowindex];
 		};
 
 		// tries to provide some helpful extra information on the current node row like the name or description or value of the node
@@ -554,7 +551,7 @@
 					display: 'table',
 				}).appendTo(into);
 				for (var k in rowstate.node[rowstate.key]) {
-					var newRowState = self.__state.rows[self.__state.rowsref[rowstate.path.concat(k).join('/')]];
+					var newRowState = self.rows[self.rowsref[rowstate.path.concat(k).join('/')]];
 					self.renderHelpSegment(newRowState, newInto, 'sub');
 				};
 
@@ -616,9 +613,9 @@
 
 			var top = DOM().new('div').appendTo(self.__json_help);
 			DOM().new('span').class('jsone-ibb jsone-help-menu').appendTo(top).on('click', function(e) {
-				self.__state.conf.menu = self.__state.conf.menu !== false ? false : true;
+				self.__state.menu = self.__state.menu !== false ? false : true;
 				self.__node.attr({
-					'data-menu': self.__state.conf.menu !== false ? '1' : '0'
+					'data-menu': self.__state.menu !== false ? '1' : '0'
 				})
 			});
 			var titlePath = DOM().new('span').class('jsone-ibb jsone-help-path').appendTo(top);
@@ -626,7 +623,7 @@
 
 			rowstate.path.forEach(function(key, i) {
 				DOM().new('span').class('jsone-ibb jsone-help-key-clickable').text(key).on('click', function(e) {
-					self.goToNode(self.__state.rows[self.__state.rowsref[rowstate.parent]], true)
+					self.goToNode(self.rows[self.rowsref[rowstate.parent]], true)
 				}).appendTo(titlePath);
 				if (i < rowstate.path.length - 1) {
 					DOM().new('span').class('jsone-delimiter').text('/').appendTo(titlePath);
@@ -653,7 +650,7 @@
 		};
 
 		self.goToNode = function(rowstate, renderState, noHashChange) {
-			self.__state.help = rowstate.joinpath;
+			self.help = rowstate.joinpath;
 			if (!noHashChange && self.__config.hashNavigation) {
 				document.location.hash = rowstate.path.slice(1).join('/');
 			}
@@ -668,14 +665,14 @@
 			}
 			//conf is the state settings we store in local storage and try to load on refresh
 
-			self.__state.conf = {
+			self.__state = {
 				__jsone_saveKey: self.__jsonSaveKey,
 				expanded: {},
 				editMode: self.__state.editMode,
-				help: self.__state.help
+				help: self.help
 			};
 
-			self.__state.rows.forEach(function(rowstate) {
+			self.rows.forEach(function(rowstate) {
 				var indent = rowstate.path.length - 1,
 					css = {
 						'padding-left': (indent * 10) + 'px',
@@ -716,7 +713,7 @@
 				}
 
 				if (rowstate.parent) {
-					if (self.__state.rows[self.__state.rowsref[rowstate.parent]].expanded) {
+					if (self.rows[self.rowsref[rowstate.parent]].expanded) {
 						rowstate.row.css({
 							display: ''
 						});
@@ -731,10 +728,10 @@
 				}
 
 				if (rowstate.expanded) {
-					self.__state.conf.expanded[rowstate.joinpath] = true;
+					self.__state.expanded[rowstate.joinpath] = true;
 				}
 
-				if (!conf.rowsOnly && self.__state.help === rowstate.joinpath) {
+				if (!conf.rowsOnly && self.help === rowstate.joinpath) {
 					rowstate.row.attr({
 						'data-active': '1'
 					});
@@ -748,7 +745,7 @@
 		self.saveStateConfig = function() {
 			clearTimeout(self.saveConfigTimer);
 			self.saveConfigTimer = setTimeout(function() {
-				window.localStorage.setItem('jsone_state_config', JSON.stringify(self.__state.conf));
+				window.localStorage.setItem('jsone_state_config', JSON.stringify(self.__state));
 			}, 100);
 		};
 		self.getStateConfig = function(key) {
@@ -765,7 +762,7 @@
 			if (!config.expanded) {
 				config.expanded = {};
 			}
-			config.__jsone_saveKey === key ? self.__state.conf = config : self.__state.conf = config = {
+			config.__jsone_saveKey === key ? self.__state = config : self.__state = config = {
 				expanded: {}
 			};
 			return;
@@ -817,11 +814,11 @@
 					setTimeout(function() {
 						self.__curMoveEvent.getState();
 						var parentPath = self.__curMoveEvent.path.split('/').slice(0, -1).join('/');
-						var parentRow = self.__state.rows[self.__state.rowsref[parentPath]];
+						var parentRow = self.rows[self.rowsref[parentPath]];
 						if (self.__curMoveEvent.currentOrder && (parentRow.type === 'object' || parentRow.type === 'array')) {
 							var newValue = parentRow.type !== 'array' ? {} : [];
 							self.__curMoveEvent.currentOrder.forEach(function(rowPath) {
-								var row = self.__state.rows[self.__state.rowsref[rowPath]];
+								var row = self.rows[self.rowsref[rowPath]];
 								parentRow.type !== 'array' ? newValue[row.key] = row.node[row.key] : newValue.push(row.node[row.key])
 							})
 							parentRow.node[parentRow.key] = newValue;
