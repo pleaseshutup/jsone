@@ -770,9 +770,9 @@
 
 		// wrap fetches so we can use a url replace. We do this for testing so we can map domains to localhost etc
 		self.fetch = function(url, callback) {
-			if (self.__config.url_replace) {
-				Object.keys(self.__config.url_replace).forEach(function(from) {
-					url = url.replace(from, self.__config.url_replace[from]);
+			if (self.__config.urlreplace) {
+				Object.keys(self.__config.urlreplace).forEach(function(from) {
+					url = url.replace(from, self.__config.urlreplace[from]);
 				});
 			}
 			__mdd.prototype.http(url, callback);
@@ -1295,10 +1295,13 @@
 		};
 		[].slice.call(el.attributes).forEach(function(attribute){
 			if(attribute.name.substr(0,5) === 'data-'){
-				config[attribute.name.substr(5)] = attribute.value;
+				try{
+					config[attribute.name.substr(5)] = JSON.parse(attribute.value);
+				} catch(e) {
+					config[attribute.name.substr(5)] = attribute.value;
+				}
 			}
 		})
-		console.log('config', config)
 		el.jsone = new jsone(config);
 	})
 

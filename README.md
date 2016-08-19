@@ -43,7 +43,7 @@ demo.on('change', function(path){
     "json": "", // a javascript object or the URL to the JSON file to use
     "schema": "", // a javascript object or the URL to the JSON file to use as the schema/rules for the JSON file
     "hashnavigation": false, // (boolean) use window.locaton.hash to provide browser history back/foward
-    "url_replace": {}, // (object) a key/value object of replace from/replace to strings for URL's which is handy for local dev testing schema's,
+    "urlreplace": {}, // (object) a key/value object of replace from/replace to strings for URL's which is handy for local dev testing schema's,
     "jsonname": automatic, // (string) a string to name the json file/object being edited
 }
 ```
