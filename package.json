@@ -5,7 +5,7 @@
   },
   
   "scripts": {
-    "start": "python -m SimpleHTTPServer 8080",
+    "run": "python -m SimpleHTTPServer 8080",
     "build": "uglifyjs jsone.js -c -m -o dist/jsone.min.js; gzip < dist/jsone.min.js > dist/jsone.min.js.gz; stat --printf=\"%s\" dist/jsone.min.js.gz; echo \" bytes\""
   }
 }
