@@ -257,52 +257,52 @@
 		};
 
 		// first pass gets all $ref's which require async operations
-		self.schemaGetRefs = function(node, callback) {
-
-			var refs = [];
-
-			var buildRefList = function(node) {
-				if (typeof node === 'object' && node) {
-					for (var k in node) {
-						if (typeof node[k] === 'object') {
-							if (node[k].$ref) {
-								var url = node[k].$ref.split('#')[0];
-								if (url) {
+		function buildRefList(node, refs) {
+			if(!refs){ var refs = []; }
+			if (typeof node === 'object' && node) {
+				for (var k in node) {
+					if (typeof node[k] === 'object') {
+						if (node[k].$ref) {
+							var url = node[k].$ref.split('#')[0];
+							if (url) {
+								if(!self.__refs[url]){
 									if (refs.indexOf(url) < 0) {
 										refs.push(url);
 									}
 								}
-							} else {
-								buildRefList(node[k]);
 							}
+						} else {
+							buildRefList(node[k], refs);
 						}
 					}
 				}
-			};
+			}
+			return refs;
+		}
 
-			var setRefs = function(node) {
-				if (typeof node === 'object' && node) {
-					for (var k in node) {
-						if (typeof node[k] === 'object') {
-							if (node[k].$ref) {
-								var spl = node[k].$ref.split('#');
-								var url = spl[0] || '';
-								var path = spl[1] || '';
-								if (path[0] === '/') {
-									path = path.substr(1);
-								}
-								var useObject = self.__refs[url] || self.__schema;
+		function setRefs(node) {
+			if (typeof node === 'object' && node) {
+				for (var k in node) {
+					if (typeof node[k] === 'object') {
+						if (node[k].$ref) {
+							var spl = node[k].$ref.split('#');
+							var url = spl[0] || '';
+							var path = spl[1] || '';
+							if (path[0] === '/') {
+								path = path.substr(1);
+							}
+							var useObject = url ? self.__refs[url] : self.__schema;
+							if(useObject){
 								node[k] = path ? self.getFromPath(useObject, path.split('/')) : useObject;
-							} else {
-								setRefs(node[k]);
 							}
 						}
+						setRefs(node[k]);
 					}
 				}
+			}
+		}
 
-			};
-
-			buildRefList(node);
+		self.schemaGetRefs = function(node, callback) {
 
 			var out = 0,
 				done = 0,
@@ -314,8 +314,9 @@
 						callback(error, true);
 					}
 				};
+
 			out++;
-			refs.forEach(function(url) {
+			buildRefList(node).forEach(function(url) {
 				out++;
 				if (self.__refs[url]) {
 					setTimeout(complete, 0); // timing i guess
@@ -334,7 +335,6 @@
 								complete();
 							});
 						}
-
 					});
 				}
 			});
@@ -346,8 +346,12 @@
 			self.__ref_urls = [];
 			self.__refs = {};
 			self.schemaGetRefs(schema, function(err, success) {
-				self.emit('schemaready', true);
-				self.json(self.__config.json);
+				if(err){
+					console.error(err);
+				} else {
+					self.emit('schemaready', true);
+					self.json(self.__config.json);
+				}
 			});
 		};
 
