@@ -7,7 +7,13 @@ This project is under heavy development. Do not adopt yet. [Try the demo][4]
 [![demo.png][2]][4]
 
 
-### Basic Usage
+### Basic Usage (web component)
+``` html
+<jsone id="jsone" data-json="demoJSON.json" data-schema="demoSchema.json"></jsone>
+<script src="jsone.js"></script>
+```
+
+### Basic Usage (javascript)
 ``` javascript
 
 var demo = new jsone({
@@ -30,13 +36,15 @@ demo.on('change', function(path){
 
 ### Config Options
 ``` javascript
+// when using the <jsone> tag to display jsone, all of these configurations will be attributes
+// prefixed by data- (to satisfy w3c) and all non-string values will be JSON.parse'd
 {
     "node": "", // the html element to populate with the jsone ui
     "json": "", // a javascript object or the URL to the JSON file to use
     "schema": "", // a javascript object or the URL to the JSON file to use as the schema/rules for the JSON file
-    "hashNavigation": false, // (boolean) use window.locaton.hash to provide browser history back/foward
+    "hashnavigation": false, // (boolean) use window.locaton.hash to provide browser history back/foward
     "url_replace": {}, // (object) a key/value object of replace from/replace to strings for URL's which is handy for local dev testing schema's,
-    "jsonName": automatic, // (string) a string to name the json file/object being edited
+    "jsonname": automatic, // (string) a string to name the json file/object being edited
 }
 ```
 

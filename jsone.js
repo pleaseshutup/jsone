@@ -8,7 +8,7 @@
 		if (!Array.isArray(self.__config.editable)) {
 			self.__config.editable = ['string', 'number', 'date', 'boolean'];
 		}
-		if (self.__config.hashNavigation) {
+		if (self.__config.hashnavigation) {
 			window.addEventListener('hashchange', function(e) {
 				var hash = (window.location.hash || '').substr(1);
 				if(hash){ hash = '/'+hash; }
@@ -141,7 +141,7 @@
 			if (typeofjson === 'object') {
 				self.__json = json;
 				if (!self.__jsonSaveKey) {
-					self.__jsonSaveKey = self.__config.jsonName || 'customObject';
+					self.__jsonSaveKey = self.__config.jsonname || self.__config.jsonName || 'customObject';
 				}
 				self.initJSON();
 			} else if (typeofjson === 'string') {
@@ -189,7 +189,7 @@
 
 			// we're passing an invented object to give the root item the appearance of the loaded file url/string
 
-			self.jsonName = self.__config.jsonName || self.__jsonSaveKey.split('/').pop();
+			self.jsonName = self.__config.jsonname || sself.__config.jsonName || self.__jsonSaveKey.split('/').pop();
 
 			self.help = self.__state.help || self.jsonName;
 			self.__state.editMode = self.__state.editMode || 'form';
@@ -651,7 +651,7 @@
 
 		self.goToNode = function(rowstate, renderState, noHashChange) {
 			self.help = rowstate.joinpath;
-			if (!noHashChange && self.__config.hashNavigation) {
+			if (!noHashChange && self.__config.hashnavigation) {
 				document.location.hash = rowstate.path.slice(1).join('/');
 			}
 			if (renderState) {
@@ -1298,6 +1298,7 @@
 				config[attribute.name.substr(5)] = attribute.value;
 			}
 		})
+		console.log('config', config)
 		el.jsone = new jsone(config);
 	})
 

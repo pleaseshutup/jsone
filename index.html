@@ -31,17 +31,18 @@
 	</head>
 	<body>
 		<h1>jsone</h1>
-		<div><a href="https://github.com/pleaseshutup/jsone">https://github.com/pleaseshutup/jsone</a></div>
 
-		<jsone id="jsone" data-json="demoJSON.json" data-schema="demoSchema.json" hashNavigation="true"></jsone>
+		<jsone id="jsone" data-json="demoJSON.json" data-schema="demoSchema.json" data-hashNavigation=true data-jsonname="demo.json"></jsone>
 		<script src="jsone.js"></script>
 
-		<div>Event Logs</div>
+		<div>Event Logs</div> 
 		<div id="jsone-logs"></div>
-		
+
+		<div><a href="https://github.com/pleaseshutup/jsone">https://github.com/pleaseshutup/jsone</a></div>
 
 		<script>
 			/*
+			javascript version for reference
 			var demo = new jsone({
 					node: document.getElementById('jsone'),
 					json: 'demoJSON.json',
