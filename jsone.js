@@ -297,9 +297,9 @@
 							} else {
 								self.emit('error', 'could not assign referenced schema to key '+k)
 							}
-							console.log('key', k, useObject);
+						} else {
+							setRefs(node[k]);
 						}
-						setRefs(node[k]);
 					}
 				}
 			}
