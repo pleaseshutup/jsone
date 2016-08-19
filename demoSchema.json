@@ -54,6 +54,11 @@
           "type": "number",
           "format": "number",
           "description": "a number between 0 and 10"
+        },
+        "key4": {
+          "type": "string",
+          "description": "choose one",
+          "enum": ["", "Option 1", "Option 2", "Option 3"]
         }
        }
       }

@@ -294,7 +294,10 @@
 							var useObject = url ? self.__refs[url] : self.__schema;
 							if(useObject){
 								node[k] = path ? self.getFromPath(useObject, path.split('/')) : useObject;
+							} else {
+								self.emit('error', 'could not assign referenced schema to key '+k)
 							}
+							console.log('key', k, useObject);
 						}
 						setRefs(node[k]);
 					}
@@ -535,12 +538,27 @@
 						edit.node = 'input';
 						edit.attr.type = rowstate.schema.format.replace(/\-/g, '');
 						edit.attr.value = rowstate.node[rowstate.key];
+					} else if(rowstate.schema.enum){
+						edit.node = 'select';
+						rowstate.schema.enum.forEach(function(){
+
+						})
 					}
 					edit.dom = DOM().new(edit.node).class('jsone-input').attr(edit.attr).appendTo(val).on('input change', function(e) {
 						self.inputChangeEvent(edit.dom.elements[0], rowstate.joinpath);
 					});
 					if(edit.node === 'textarea'){
 						edit.dom.text(rowstate.node[rowstate.key] || '').autosizeTextarea();
+					} else if(rowstate.schema.enum){
+						var foundval = false;
+						rowstate.schema.enum.forEach(function(op){
+							if(op === rowstate.node[rowstate.key]){ foundval = true; }
+							DOM().new('option').attr({value: op, selected: op === rowstate.node[rowstate.key]}).text(op).appendTo(edit.dom)
+						})
+						if(!foundval){
+							// sets the value and adds the option if the current value doesn't exist 
+							DOM().new('option').attr({value: rowstate.node[rowstate.key], selected: true}).text(rowstate.node[rowstate.key]).appendTo(edit.dom)
+						}
 					}
 				}
 			}
