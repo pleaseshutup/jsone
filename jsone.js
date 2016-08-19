@@ -189,7 +189,7 @@
 
 			// we're passing an invented object to give the root item the appearance of the loaded file url/string
 
-			self.jsonName = self.__config.jsonname || sself.__config.jsonName || self.__jsonSaveKey.split('/').pop();
+			self.jsonName = self.__config.jsonname || self.__config.jsonName || self.__jsonSaveKey.split('/').pop();
 
 			self.help = self.__state.help || self.jsonName;
 			self.__state.editMode = self.__state.editMode || 'form';
