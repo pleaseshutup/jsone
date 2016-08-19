@@ -1102,8 +1102,8 @@
 			if (typeof sel === 'object') {
 				this.elements = sel.__mdd ? sel : [sel];
 			} else if (sel) {
-				this.elements = [].slice.call((target ? target.__mdd ? target.elements[0] : target : document).querySelectorAll(sel));
-			}
+				this.elements = [].slice.call((target ? (target.__mdd ? (target.elements[0] || document) : target || document) : document).querySelectorAll(sel));
+			} else { this.elements = [] }
 			return this;
 		};
 		__mdd.prototype.on = function(eventNames, execFunc) {
@@ -1288,6 +1288,18 @@
 	var DOM = function(sel, target) {
 		return new __mdd(sel, target);
 	};
+
+	DOM().find('jsone').elements.forEach(function(el){
+		var config = {
+			node: el
+		};
+		[].slice.call(el.attributes).forEach(function(attribute){
+			if(attribute.name.substr(0,5) === 'data-'){
+				config[attribute.name.substr(5)] = attribute.value;
+			}
+		})
+		el.jsone = new jsone(config);
+	})
 
 	root.jsone = jsone;
 	return this;

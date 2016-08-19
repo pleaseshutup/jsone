@@ -32,12 +32,16 @@
 	<body>
 		<h1>jsone</h1>
 		<div><a href="https://github.com/pleaseshutup/jsone">https://github.com/pleaseshutup/jsone</a></div>
-		<div id="jsone"></div>
-		<div>Event Logs</div>
-		<div id="jsone-logs"></div>
+
+		<jsone id="jsone" data-json="demoJSON.json" data-schema="demoSchema.json" hashNavigation="true"></jsone>
 		<script src="jsone.js"></script>
 
+		<div>Event Logs</div>
+		<div id="jsone-logs"></div>
+		
+
 		<script>
+			/*
 			var demo = new jsone({
 					node: document.getElementById('jsone'),
 					json: 'demoJSON.json',
@@ -48,9 +52,15 @@
 			demo.on('event', function(args){
 				jsoneLog(args)
 			})
+			*/
 		</script>
 
 		<script>
+
+			var jsonediv = document.getElementById('jsone').jsone
+			jsonediv.on('event', function(args){
+				jsoneLog(args)
+			})
 
 			var DOM = function(sel, target) {
 				return new __mdd(sel, target);
