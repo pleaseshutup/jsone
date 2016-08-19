@@ -30,9 +30,13 @@ demo.on('change', function(path){
     })
 })
 
-
-
 ```
+
+### Webpack/NPM
+```
+    require('jsone-ui');
+```
+
 
 ### Config Options
 ``` javascript

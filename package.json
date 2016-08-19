@@ -1,11 +1,11 @@
 {
-  "name": "jsone",
+  "name": "jsone-ui",
+  "version": "0.0.1",
   "devDependencies": {
     "uglifyjs": "latest"
   },
-  
   "scripts": {
-    "run": "python -m SimpleHTTPServer 8080",
+    "dev": "python -m SimpleHTTPServer 8080",
     "build": "uglifyjs jsone.js -c -m -o dist/jsone.min.js; gzip < dist/jsone.min.js > dist/jsone.min.js.gz; stat --printf=\"%s\" dist/jsone.min.js.gz; echo \" bytes\""
   }
 }

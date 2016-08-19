@@ -133,11 +133,11 @@
 		// accept a javascript object or a URL to one
 		self.json = function(json) {
 			if (!json) {
-				self.initJSON();
+				self.emit('error', 'invalid json');
 				return false;
 			}
-			var typeofjson = typeof json;
 
+			var typeofjson = typeof json;
 			if (typeofjson === 'object') {
 				self.__json = json;
 				if (!self.__jsonSaveKey) {
