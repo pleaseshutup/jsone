@@ -941,7 +941,7 @@
 			'.jsone-help': {
 				background: '#fff',
 				'min-height': '400px',
-				'max-height': '400px',
+				'max-height': '100%',
 				'overflow-y': 'auto',
 				'max-width': '800px',
 				transform: 'translate3d(0, 0, 0)',
