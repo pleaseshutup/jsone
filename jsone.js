@@ -293,7 +293,12 @@
 							}
 							var useObject = url ? self.__refs[url] : self.__schema;
 							if(useObject){
-								node[k] = path ? self.getFromPath(useObject, path.split('/')) : useObject;
+								var useObjectPart = path ? self.getFromPath(useObject, path.split('/')) : useObject;
+								if(useObjectPart){
+									for(var key in useObjectPart){
+										node[k][key] = useObjectPart[key];
+									}
+								}
 							} else {
 								self.emit('error', 'could not assign referenced schema to key '+k)
 							}
@@ -515,13 +520,9 @@
 						}
 					})
 
-
-					DOM().new('span').text(' »').class('jsone-help-key-clickable').appendTo(val).on('click', function(e) {
-						self.goToNode(rowstate, true);
-					});
 				}
 			} else {
-				if (self.__config.editable.indexOf(rowstate.schema.format || rowstate.type) > -1) {
+				if (self.__config.editable.indexOf(rowstate.schema.format || rowstate.type) > -1 && rowstate.schema.edit !== false) {
 					var edit = {
 						node: 'textarea',
 						attr: {
@@ -562,10 +563,10 @@
 					}
 				}
 			}
-
 			if (rowstate.schema.description) {
 				DOM().new('div').class('jsone-help-description').html(rowstate.schema.description).appendTo(val);
 			}
+
 
 			if ((rowstate.type === 'object' || rowstate.type === 'array') && context == 'main') {
 
