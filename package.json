@@ -1,11 +1,38 @@
 {
   "name": "jsone-ui",
   "version": "0.0.3",
+  "keywords": [
+    "json",
+    "schema",
+    "editor",
+    "documentation",
+    "api",
+    "json-schema"
+  ],
+  "description": "JSON Editor with configurable editing, validation and documentation using json schema",
+  "homepage": "https://github.com/pleaseshutup/jsone",
+  "license": "MIT",
+  "main": "jsone.js",
+  "author": {
+    "name": "Dan Williams",
+    "email": "pleaseshutup@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pleaseshutup/jsone"
+  },
+  "bugs": {
+    "url": "https://github.com/pleaseshutup/jsone/issues",
+    "email": "pleaseshutup@gmail.com"
+  },
   "devDependencies": {
     "uglifyjs": "latest"
   },
   "scripts": {
     "dev": "python -m SimpleHTTPServer 8080",
     "build": "uglifyjs jsone.js -c -m -o dist/jsone.min.js; gzip < dist/jsone.min.js > dist/jsone.min.js.gz; stat --printf=\"%s\" dist/jsone.min.js.gz; echo \" bytes\""
+  },
+  "dependencies": {
+    "dragula": "^3.7.1"
   }
 }
