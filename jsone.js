@@ -541,9 +541,9 @@
 						edit.node = 'input';
 						edit.attr.type = 'checkbox';
 						edit.attr.checked = rowstate.node[rowstate.key];
-					} else if (rowstate.schema.format === 'number' || rowstate.schema.format === 'date' || rowstate.schema.format === 'date-time') {
+					} else if (rowstate.schema.type === 'number' || rowstate.schema.format === 'number' || rowstate.schema.format === 'date' || rowstate.schema.format === 'date-time') {
 						edit.node = 'input';
-						edit.attr.type = rowstate.schema.format.replace(/\-/g, '');
+						edit.attr.type = (rowstate.schema.format || '').replace(/\-/g, '');
 						edit.attr.value = rowstate.node[rowstate.key];
 					} else if (rowstate.schema.enum) {
 						edit.node = 'select';
