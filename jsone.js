@@ -11,12 +11,14 @@
 		if (self.__config.hashnavigation) {
 			window.addEventListener('hashchange', function(e) {
 				var hash = (window.location.hash || '').substr(1);
-				if(hash){ hash = '/'+hash; }
+				if (hash) {
+					hash = '/' + hash;
+				}
 				var rowstate = self.rows[self.rowsref[self.jsonName + hash]];
 				if (rowstate) {
 					self.goToNode(rowstate, true, true);
 				}
-			})
+			});
 		}
 
 		// the node we write into. Take provided node, query selector, id=jsone or just the body
@@ -26,7 +28,7 @@
 		self.rowsref = {};
 		self.help = 0;
 
-		self.__state = {}
+		self.__state = {};
 
 		self.inputChangeEvent = function(el, joinpath) {
 			clearTimeout(self.__state.changes_timer);
@@ -38,16 +40,17 @@
 		self.jsonChangeEvent = function(el, joinpath) {
 			clearTimeout(self.__state.changes_timer);
 			self.__state.changes_timer = setTimeout(function() {
-				self.checkForChangesJSON(el, joinpath)
+				self.checkForChangesJSON(el, joinpath);
 			}, 100);
 		};
 		self.checkForChangesJSON = function(el, joinpath) {
-			var json_object, ok = false;
+			var json_object,
+				ok = false;
 			try {
 				json_object = JSON.parse(el.value);
 				ok = true;
 				el.style.outline = '';
-			} catch (e) {
+			} catch ( e ) {
 				self.emit('jsonparse', joinpath);
 				el.style.outline = '2px solid red';
 			}
@@ -90,7 +93,7 @@
 					}
 				}
 			}
-		}
+		};
 
 		self.checkForChanges = function(el, joinpath) {
 			var rowstate = self.rows[self.rowsref[joinpath]];
@@ -101,7 +104,7 @@
 					} else if (rowstate.type === 'boolean') {
 						rowstate.node[rowstate.key] = el.checked;
 					} else {
-						rowstate.node[rowstate.key] = el.value || ''
+						rowstate.node[rowstate.key] = el.value || '';
 					}
 
 					rowstate.changed = true;
@@ -113,9 +116,9 @@
 			}
 		};
 
-		self.valueFromPath = function(path){
+		self.valueFromPath = function(path) {
 			return self.getFromPath(self.__json, path);
-		}
+		};
 
 		self.getFromPath = function(obj, path) {
 			var cur = obj,
@@ -197,7 +200,7 @@
 			if (self.__state.menu !== false) {
 				self.__node.attr({
 					'data-menu': '1'
-				})
+				});
 			}
 
 			if (window.location.hash.substr(1)) {
@@ -205,7 +208,7 @@
 			}
 
 			var fauxschema = {
-				"properties": {}
+				'properties': {}
 			};
 			fauxschema.properties[self.jsonName] = self.__schema;
 			self.__schema = fauxschema;
@@ -258,14 +261,16 @@
 
 		// first pass gets all $ref's which require async operations
 		function buildRefList(node, refs) {
-			if(!refs){ var refs = []; }
+			if (!refs) {
+				var refs = [];
+			}
 			if (typeof node === 'object' && node) {
 				for (var k in node) {
 					if (typeof node[k] === 'object') {
 						if (node[k].$ref) {
 							var url = node[k].$ref.split('#')[0];
 							if (url) {
-								if(!self.__refs[url]){
+								if (!self.__refs[url]) {
 									if (refs.indexOf(url) < 0) {
 										refs.push(url);
 									}
@@ -292,15 +297,15 @@
 								path = path.substr(1);
 							}
 							var useObject = url ? self.__refs[url] : self.__schema;
-							if(useObject){
+							if (useObject) {
 								var useObjectPart = path ? self.getFromPath(useObject, path.split('/')) : useObject;
-								if(useObjectPart){
-									for(var key in useObjectPart){
+								if (useObjectPart) {
+									for (var key in useObjectPart) {
 										node[k][key] = useObjectPart[key];
 									}
 								}
 							} else {
-								self.emit('error', 'could not assign referenced schema to key '+k)
+								self.emit('error', 'could not assign referenced schema to key ' + k);
 							}
 						} else {
 							setRefs(node[k]);
@@ -354,7 +359,7 @@
 			self.__ref_urls = [];
 			self.__refs = {};
 			self.schemaGetRefs(schema, function(err, success) {
-				if(err){
+				if (err) {
 					console.error(err);
 				} else {
 					self.emit('schemaready', true);
@@ -445,7 +450,7 @@
 				} else if (type === 'boolean') {
 					val = val ? true : false;
 				} else if (type === 'number') {
-					val = 0
+					val = 0;
 				} else {
 					val = '';
 				}
@@ -474,10 +479,13 @@
 		};
 
 		// tries to provide some helpful extra information on the current node row like the name or description or value of the node
-		self.getNodeDescription = function(rowstate) {
+		self.getNodeDescription = function(rowstate, textOnly) {
 			var str = '';
-			if (rowstate.type === 'object') {
+			if (rowstate.type === 'object' || textOnly) {
 				str = rowstate.node[rowstate.key].name || rowstate.node[rowstate.key].title || rowstate.node[rowstate.key].label || rowstate.node[rowstate.key]._label || rowstate.node[rowstate.key].description;
+				if (textOnly) {
+					return str || '';
+				}
 				return typeof str === 'string' ? '<span class="jsone-node-helper">' + DOM().new('span').text(str).html() + '</span>' : '';
 			} else if (rowstate.type === 'number' || rowstate.type === 'string') {
 				return '<span class="jsone-node-colon">:</span><span class="jsone-node-value">' + (rowstate.node[rowstate.key] ? DOM().new('span').text(rowstate.node[rowstate.key]).html() : '<span class="jsone-node-empty"></span>') + '</span>';
@@ -501,7 +509,7 @@
 
 				key = DOM().new('div').class('jsone-help-key').attr({
 					title: rowstate.joinpath + ' (' + rowstate.type + ')'
-				}).text(rowstate.path[rowstate.path.length - 1]).append(DOM().new('span').class('jsone-node-colon').text(':')).appendTo(secinto);
+				}).text(self.getNodeDescription(rowstate, true) || rowstate.path[rowstate.path.length - 1]).append(DOM().new('span').class('jsone-node-colon').text(':')).appendTo(secinto);
 
 				val = DOM().new('div').class('jsone-help-value').appendTo(secinto);
 
@@ -512,13 +520,11 @@
 			if (rowstate.type === 'object' || rowstate.type === 'array') {
 				if (context !== 'main') {
 
-					DOM().new('span').html(self.getNodeDescription(rowstate)).appendTo(val)
-
 					key.class('jsone-help-key jsone-help-key-clickable').on('click', function(e) {
 						if (!self.__curMoveEvent) {
 							self.goToNode(rowstate, true);
 						}
-					})
+					});
 
 				}
 			} else {
@@ -534,31 +540,37 @@
 					if (rowstate.type === 'boolean') {
 						edit.node = 'input';
 						edit.attr.type = 'checkbox';
-						edit.attr.checked = rowstate.node[rowstate.key]
+						edit.attr.checked = rowstate.node[rowstate.key];
 					} else if (rowstate.schema.format === 'number' || rowstate.schema.format === 'date' || rowstate.schema.format === 'date-time') {
 						edit.node = 'input';
 						edit.attr.type = rowstate.schema.format.replace(/\-/g, '');
 						edit.attr.value = rowstate.node[rowstate.key];
-					} else if(rowstate.schema.enum){
+					} else if (rowstate.schema.enum) {
 						edit.node = 'select';
-						rowstate.schema.enum.forEach(function(){
-
-						})
+						rowstate.schema.enum.forEach(function() {});
 					}
 					edit.dom = DOM().new(edit.node).class('jsone-input').attr(edit.attr).appendTo(val).on('input change', function(e) {
 						self.inputChangeEvent(edit.dom.elements[0], rowstate.joinpath);
 					});
-					if(edit.node === 'textarea'){
+					if (edit.node === 'textarea') {
 						edit.dom.text(rowstate.node[rowstate.key] || '').autosizeTextarea();
-					} else if(rowstate.schema.enum){
+					} else if (rowstate.schema.enum) {
 						var foundval = false;
-						rowstate.schema.enum.forEach(function(op){
-							if(op === rowstate.node[rowstate.key]){ foundval = true; }
-							DOM().new('option').attr({value: op, selected: op === rowstate.node[rowstate.key]}).text(op).appendTo(edit.dom)
-						})
-						if(!foundval){
+						rowstate.schema.enum.forEach(function(op) {
+							if (op === rowstate.node[rowstate.key]) {
+								foundval = true;
+							}
+							DOM().new('option').attr({
+								value: op,
+								selected: op === rowstate.node[rowstate.key]
+							}).text(op).appendTo(edit.dom);
+						});
+						if (!foundval) {
 							// sets the value and adds the option if the current value doesn't exist 
-							DOM().new('option').attr({value: rowstate.node[rowstate.key], selected: true}).text(rowstate.node[rowstate.key]).appendTo(edit.dom)
+							DOM().new('option').attr({
+								value: rowstate.node[rowstate.key],
+								selected: true
+							}).text(rowstate.node[rowstate.key]).appendTo(edit.dom);
 						}
 					}
 				}
@@ -576,14 +588,14 @@
 				for (var k in rowstate.node[rowstate.key]) {
 					var newRowState = self.rows[self.rowsref[rowstate.path.concat(k).join('/')]];
 					self.renderHelpSegment(newRowState, newInto, 'sub');
-				};
+				}
 
 				if (rowstate.schema.additionalProperties !== false) {
 					if (rowstate.type === 'array') {
 						DOM().new('button').text('add row').class('jsone-input jsone-input-add').on('click', function(e) {
-							self.addToJSON(rowstate, 'add')
+							self.addToJSON(rowstate, 'add');
 							self.renderState();
-						}).appendTo(into)
+						}).appendTo(into);
 					} else {
 						var datalist = DOM().new('datalist').attr({
 							id: 'propertyList'
@@ -593,37 +605,39 @@
 								if (typeof rowstate.node[rowstate.key][property] === 'undefined') {
 									var desc = '';
 									if (rowstate.schema.properties[property].description) {
-										desc += ': ' + rowstate.schema.properties[property].description
+										desc += ': ' + rowstate.schema.properties[property].description;
 									}
 									DOM().new('option').attr({
 										value: property
 									}).text(property + desc).appendTo(datalist);
 								}
-							})
+							});
 						}
-						var form = DOM().new('form').css({'margin-top': '20px'}).on('submit', function(e) {
-								var addprop = form.find('input').elements[0].value || '';
-								if (addprop && typeof rowstate.node[rowstate.key][addprop] === 'undefined') {
-									self.addToJSON(rowstate, addprop);
-								}
-								self.renderState();
-								e.preventDefault();
-							}).append(
-								DOM().new('label').class('jsone-ibb').text('add property ')
+						var form = DOM().new('form').css({
+							'margin-top': '20px'
+						}).on('submit', function(e) {
+							var addprop = form.find('input').elements[0].value || '';
+							if (addprop && typeof rowstate.node[rowstate.key][addprop] === 'undefined') {
+								self.addToJSON(rowstate, addprop);
+							}
+							self.renderState();
+							e.preventDefault();
+						}).append(
+							DOM().new('label').class('jsone-ibb').text('add property ')
 								.append(
 									DOM().new('input').class('jone-input').attr({
 										type: 'text',
 										list: 'propertyList'
 									})
-								).append(datalist)
-							)
+							).append(datalist)
+						)
 							.append(DOM().new('span').text(' '))
 							.append(
 								DOM().new('input').class('jsone-input jsone-input-add').attr({
 									type: 'submit',
 									value: 'add property'
 								})
-							).appendTo(into)
+						).appendTo(into);
 					}
 				}
 
@@ -639,26 +653,26 @@
 				self.__state.menu = self.__state.menu !== false ? false : true;
 				self.__node.attr({
 					'data-menu': self.__state.menu !== false ? '1' : '0'
-				})
+				});
 			});
 			var titlePath = DOM().new('span').class('jsone-ibb jsone-help-path').appendTo(top);
 			var titleOps = DOM().new('span').class('jsone-ibb jsone-help-ops').appendTo(top);
 
 			rowstate.path.forEach(function(key, i) {
 				DOM().new('span').class('jsone-ibb jsone-help-key-clickable').text(key).on('click', function(e) {
-					self.goToNode(self.rows[self.rowsref[rowstate.parent]], true)
+					self.goToNode(self.rows[self.rowsref[rowstate.parent]], true);
 				}).appendTo(titlePath);
 				if (i < rowstate.path.length - 1) {
 					DOM().new('span').class('jsone-delimiter').text('/').appendTo(titlePath);
 				}
-			})
+			});
 
 			DOM().new('button').attr({
 				href: '#'
 			}).class('jsone-input').text(self.__state.editMode === 'json' ? 'form' : 'json').appendTo(titleOps).on('click', function(e) {
 				self.__state.editMode === 'json' ? self.__state.editMode = 'form' : self.__state.editMode = 'json';
 				self.renderState();
-			})
+			});
 
 			var into = DOM().new('div').class('jsone-help-items').appendTo(self.__json_help);
 
@@ -712,10 +726,10 @@
 					rowstate.row.html('')
 						.append(
 							DOM().new('span').class('jsone-row-toggle')
-						)
+					)
 						.append(
 							DOM().new('span').class('jsone-row-text').html('<span class="jsone-node-key">' + rowstate.key + '</span>' + self.getNodeDescription(rowstate))
-						)
+					)
 						.css(css)
 						.attr({
 							title: rowstate.key + ' (' + rowstate.type + ') ' + (rowstate.schema.description || '')
@@ -776,7 +790,7 @@
 			if (config) {
 				try {
 					config = JSON.parse(config);
-				} catch (e) {
+				} catch ( e ) {
 					config = {};
 				}
 			} else {
@@ -799,7 +813,7 @@
 				});
 			}
 			__mdd.prototype.http(url, callback);
-		}
+		};
 
 		self.__node.elements[0].classList.add('jsone');
 		self.__json_rows = DOM().new('div').class('jsone-rows').appendTo(self.__node);
@@ -822,16 +836,16 @@
 				self.__curMoveEvent = {
 					path: path,
 					getState: function() {
-						self.__curMoveEvent.els = self.__json_help.find('.jsone-help-row').elements
+						self.__curMoveEvent.els = self.__json_help.find('.jsone-help-row').elements;
 						self.__curMoveEvent.currentOrder = self.__curMoveEvent.els.map(function(el) {
 							return el.getAttribute('data-path');
-						})
+						});
 						self.__curMoveEvent.index = self.__curMoveEvent.currentOrder.indexOf(path);
 					}
 				};
 				self.__curMoveEvent.getState();
-				window.addEventListener('mousemove', self.sortingEvents)
-				window.addEventListener('mouseup', self.sortingEvents)
+				window.addEventListener('mousemove', self.sortingEvents);
+				window.addEventListener('mouseup', self.sortingEvents);
 			} else if (path && self.__curMoveEvent) {
 				if (e.type === 'mouseup' || e.type === 'touchend') {
 					setTimeout(function() {
@@ -842,8 +856,8 @@
 							var newValue = parentRow.type !== 'array' ? {} : [];
 							self.__curMoveEvent.currentOrder.forEach(function(rowPath) {
 								var row = self.rows[self.rowsref[rowPath]];
-								parentRow.type !== 'array' ? newValue[row.key] = row.node[row.key] : newValue.push(row.node[row.key])
-							})
+								parentRow.type !== 'array' ? newValue[row.key] = row.node[row.key] : newValue.push(row.node[row.key]);
+							});
 							parentRow.node[parentRow.key] = newValue;
 							self.__track_change(parentPath, newValue);
 							self.processJSON();
@@ -851,8 +865,8 @@
 						}
 						self.__curMoveEvent = false;
 					}, 100);
-					window.removeEventListener('mousemove', self.sortingEvents)
-					window.removeEventListener('touchend', self.sortingEvents)
+					window.removeEventListener('mousemove', self.sortingEvents);
+					window.removeEventListener('touchend', self.sortingEvents);
 				} else if (e.type === 'mousemove' || e.type === 'touchmove') {
 					if (path !== self.__curMoveEvent.path) {
 						var toIndex = self.__curMoveEvent.currentOrder.indexOf(path);
@@ -860,9 +874,9 @@
 							toRow = self.__curMoveEvent.els[toIndex];
 						if (fromRow && toRow) {
 							if (self.__curMoveEvent.direction === 'down') {
-								toRow.parentNode.insertBefore(toRow, fromRow)
+								toRow.parentNode.insertBefore(toRow, fromRow);
 							} else {
-								toRow.parentNode.insertBefore(fromRow, toRow)
+								toRow.parentNode.insertBefore(fromRow, toRow);
 							}
 						}
 					}
@@ -871,32 +885,36 @@
 					self.__curMoveEvent.lastY = self.__curMoveEvent.y;
 				}
 			}
-		}
+		};
 
 		self.__changes = [];
-		self.__track_change = function(path, value){
+		self.__track_change = function(path, value) {
 			var thisPathExists = false;
-			self.__changes.forEach(function(changedPath){
-				if(path.indexOf(changedPath) > -1){
+			self.__changes.forEach(function(changedPath) {
+				if (path.indexOf(changedPath) > -1) {
 					thisPathExists = true;
 				}
 			});
 
-			if(!thisPathExists){
+			if (!thisPathExists) {
 				self.__changes.push(path);
 			}
 
 			self.emit('change', path, value);
 			self.getChanges();
-		}
-		self.getChanges = function(){
+		};
+		self.getChanges = function() {
 			var changes = [];
-			self.__changes.forEach(function(changedPath){
+			self.__changes.forEach(function(changedPath) {
 				var modpath = changedPath.split('/').slice(1);
-				changes.push({path: modpath, joinpath: modpath.join('/'), value:self.valueFromPath(modpath)});
+				changes.push({
+					path: modpath,
+					joinpath: modpath.join('/'),
+					value: self.valueFromPath(modpath)
+				});
 			});
 			return changes;
-		}
+		};
 
 		self.__listeners = {};
 		self.emit = function() {
@@ -1126,7 +1144,9 @@
 				this.elements = sel.__mdd ? sel : [sel];
 			} else if (sel) {
 				this.elements = [].slice.call((target ? (target.__mdd ? (target.elements[0] || document) : target || document) : document).querySelectorAll(sel));
-			} else { this.elements = [] }
+			} else {
+				this.elements = [];
+			}
 			return this;
 		};
 		__mdd.prototype.on = function(eventNames, execFunc) {
@@ -1235,7 +1255,7 @@
 				this.autosizeTextarea(true);
 				this.on('input', function(e) {
 					self.autosizeTextarea(true);
-				})
+				});
 			}
 
 			return this;
@@ -1292,7 +1312,7 @@
 				if (config.json || config.url.substr(-5) === '.json') {
 					try {
 						ret = JSON.parse(request.responseText);
-					} catch (e) {
+					} catch ( e ) {
 						err = 'could not parse json from url: ' + config.url;
 						ret = false;
 					}
@@ -1312,21 +1332,21 @@
 		return new __mdd(sel, target);
 	};
 
-	DOM().find('jsone').elements.forEach(function(el){
+	DOM().find('jsone').elements.forEach(function(el) {
 		var config = {
 			node: el
 		};
-		[].slice.call(el.attributes).forEach(function(attribute){
-			if(attribute.name.substr(0,5) === 'data-'){
-				try{
+		[].slice.call(el.attributes).forEach(function(attribute) {
+			if (attribute.name.substr(0, 5) === 'data-') {
+				try {
 					config[attribute.name.substr(5)] = JSON.parse(attribute.value);
-				} catch(e) {
+				} catch ( e ) {
 					config[attribute.name.substr(5)] = attribute.value;
 				}
 			}
-		})
+		});
 		el.jsone = new jsone(config);
-	})
+	});
 
 	root.jsone = jsone;
 	return this;
