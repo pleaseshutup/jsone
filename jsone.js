@@ -50,7 +50,7 @@
 				json_object = JSON.parse(el.value);
 				ok = true;
 				el.style.outline = '';
-			} catch ( e ) {
+			} catch (e) {
 				self.emit('jsonparse', joinpath);
 				el.style.outline = '2px solid red';
 			}
@@ -614,30 +614,30 @@
 							});
 						}
 						var form = DOM().new('form').css({
-							'margin-top': '20px'
-						}).on('submit', function(e) {
-							var addprop = form.find('input').elements[0].value || '';
-							if (addprop && typeof rowstate.node[rowstate.key][addprop] === 'undefined') {
-								self.addToJSON(rowstate, addprop);
-							}
-							self.renderState();
-							e.preventDefault();
-						}).append(
-							DOM().new('label').class('jsone-ibb').text('add property ')
+								'margin-top': '20px'
+							}).on('submit', function(e) {
+								var addprop = form.find('input').elements[0].value || '';
+								if (addprop && typeof rowstate.node[rowstate.key][addprop] === 'undefined') {
+									self.addToJSON(rowstate, addprop);
+								}
+								self.renderState();
+								e.preventDefault();
+							}).append(
+								DOM().new('label').class('jsone-ibb').text('add property ')
 								.append(
 									DOM().new('input').class('jone-input').attr({
 										type: 'text',
 										list: 'propertyList'
 									})
-							).append(datalist)
-						)
+								).append(datalist)
+							)
 							.append(DOM().new('span').text(' '))
 							.append(
 								DOM().new('input').class('jsone-input jsone-input-add').attr({
 									type: 'submit',
 									value: 'add property'
 								})
-						).appendTo(into);
+							).appendTo(into);
 					}
 				}
 
@@ -726,10 +726,10 @@
 					rowstate.row.html('')
 						.append(
 							DOM().new('span').class('jsone-row-toggle')
-					)
+						)
 						.append(
 							DOM().new('span').class('jsone-row-text').html('<span class="jsone-node-key">' + rowstate.key + '</span>' + self.getNodeDescription(rowstate))
-					)
+						)
 						.css(css)
 						.attr({
 							title: rowstate.key + ' (' + rowstate.type + ') ' + (rowstate.schema.description || '')
@@ -790,7 +790,7 @@
 			if (config) {
 				try {
 					config = JSON.parse(config);
-				} catch ( e ) {
+				} catch (e) {
 					config = {};
 				}
 			} else {
@@ -1130,6 +1130,15 @@
 				height: '400px',
 				'background-color': '#272822',
 				color: '#f8f8f2'
+			},
+			'@600': {
+				'.jsone-rows': {
+					width: '100px',
+				},
+				'.jsone[data-menu="1"] .jsone-help': {
+					width: 'calc(100%)',
+					transform: 'translate3d(100px, 0, 0)'
+				}
 			}
 		}, 'jsone-sheet');
 
@@ -1262,14 +1271,27 @@
 		};
 		__mdd.prototype.stylesheet = function(sheet, id) {
 			if (typeof sheet === 'object') {
-				var stylesheet = '';
-				Object.keys(sheet).forEach(function(selector) {
-					stylesheet += selector + ' { ';
-					Object.keys(sheet[selector]).forEach(function(property) {
+				var stylesheet = '',
+					addProperty = function(sheet, selector, property) {
 						stylesheet += property + ':' + sheet[selector][property] + ';';
-					});
-					stylesheet += ' } ';
-				});
+					},
+					addStyles = function(sheet, selector) {
+						if (selector.substr(0, 1) === '@') {
+							stylesheet += '@media all and (max-width: ' + selector.substr(1) + 'px){';
+							Object.keys(sheet[selector]).forEach(function(selector2) {
+								addStyles(sheet[selector], selector2)
+							});
+							'}';
+						} else {
+							stylesheet += selector + ' { ';
+							Object.keys(sheet[selector]).forEach(function(property) {
+								addProperty(sheet, selector, property)
+							});
+							stylesheet += ' } ';
+						}
+					};
+
+				Object.keys(sheet).forEach(function(selector){ addStyles(sheet, selector) });
 				sheet = stylesheet;
 			}
 			var head = document.head || document.getElementsByTagName('head')[0],
@@ -1312,7 +1334,7 @@
 				if (config.json || config.url.substr(-5) === '.json') {
 					try {
 						ret = JSON.parse(request.responseText);
-					} catch ( e ) {
+					} catch (e) {
 						err = 'could not parse json from url: ' + config.url;
 						ret = false;
 					}
@@ -1340,7 +1362,7 @@
 			if (attribute.name.substr(0, 5) === 'data-') {
 				try {
 					config[attribute.name.substr(5)] = JSON.parse(attribute.value);
-				} catch ( e ) {
+				} catch (e) {
 					config[attribute.name.substr(5)] = attribute.value;
 				}
 			}
