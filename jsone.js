@@ -587,7 +587,9 @@
 				}).appendTo(into);
 				for (var k in rowstate.node[rowstate.key]) {
 					var newRowState = self.rows[self.rowsref[rowstate.path.concat(k).join('/')]];
-					self.renderHelpSegment(newRowState, newInto, 'sub');
+					if(newRowState){
+						self.renderHelpSegment(newRowState, newInto, 'sub');
+					}
 				}
 
 				if (rowstate.schema.additionalProperties !== false) {
